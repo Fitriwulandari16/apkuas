@@ -1,70 +1,80 @@
 import 'package:flutter/material.dart';
-//import 'package:apkuas/core/theme/cilik_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
+import 'package:apkuas/core/providers/progress_provider.dart';
+import 'package:apkuas/core/services/confetti_effect.dart';
 
-class LineTracingScreen extends StatefulWidget {
-  const LineTracingScreen({super.key});
+class LineTracingScreen extends ConsumerStatefulWidget {
+  final int levelId;
+  const LineTracingScreen({super.key, this.levelId = 1});
 
   @override
-  State<LineTracingScreen> createState() => _LineTracingScreenState();
+  ConsumerState<LineTracingScreen> createState() => _LineTracingScreenState();
 }
 
-class _LineTracingScreenState extends State<LineTracingScreen> {
-  // 4 points in a 2x2 grid:
-  // 0  1
-  // 2  3
+class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
   final List<Offset> dotPositions = [
-    const Offset(0.25, 0.25), // Top-left
-    const Offset(0.75, 0.25), // Top-right
-    const Offset(0.25, 0.75), // Bottom-left
-    const Offset(0.75, 0.75), // Bottom-right
+    const Offset(0.25, 0.25),
+    const Offset(0.75, 0.25),
+    const Offset(0.25, 0.75),
+    const Offset(0.75, 0.75),
   ];
 
   late _LevelData currentLevel;
   int currentLevelIndex = 0;
+  bool isGameWon = false;
 
   final List<_LevelData> levels = [
-    // Level 1 Patterns (Page 3)
+    // Level 1 Patterns
     _LevelData(
+      stage: 'Level 1',
       color: Colors.yellow,
-      targetLines: [const _Line(0, 2)], 
-      instruction: 'Tiru garis tegak di sebelah kiri!',
+      targetLines: [const _Line(0, 2)],
+      instruction: 'Tiru garis tegak ini!',
     ),
     _LevelData(
+      stage: 'Level 1',
       color: Colors.red,
-      targetLines: [const _Line(1, 3)], 
-      instruction: 'Tiru garis tegak di sebelah kanan!',
+      targetLines: [const _Line(1, 3)],
+      instruction: 'Tiru garis tegak di kanan!',
     ),
     _LevelData(
+      stage: 'Level 1',
       color: Colors.blue,
-      targetLines: [const _Line(2, 1)], 
+      targetLines: [const _Line(2, 1)],
       instruction: 'Tiru garis miring ini!',
     ),
     _LevelData(
+      stage: 'Level 1',
       color: Colors.green,
-      targetLines: [const _Line(0, 1), const _Line(2, 3)], 
+      targetLines: [const _Line(0, 1), const _Line(2, 3)],
       instruction: 'Tiru dua garis datar ini!',
     ),
-    // Level 2 Patterns (Page 4)
+    // Level 2 Patterns
     _LevelData(
+      stage: 'Level 2',
       color: Colors.yellow,
-      targetLines: [const _Line(0, 1), const _Line(1, 2)], 
-      instruction: 'Tiru pola garis kuning ini!',
+      targetLines: [const _Line(0, 1), const _Line(1, 2)],
+      instruction: 'Ayo buat pola garis kuning!',
     ),
     _LevelData(
+      stage: 'Level 2',
       color: Colors.red,
-      targetLines: [const _Line(0, 1), const _Line(0, 2), const _Line(2, 3)], 
+      targetLines: [const _Line(0, 1), const _Line(0, 2), const _Line(2, 3)],
       instruction: 'Tiru pola garis merah ini!',
     ),
     _LevelData(
+      stage: 'Level 2',
       color: Colors.blue,
-      targetLines: [const _Line(2, 1), const _Line(1, 3)], 
-      instruction: 'Tiru pola garis biru ini!',
+      targetLines: [const _Line(2, 1), const _Line(1, 3)],
+      instruction: 'Bisa buat pola biru ini?',
     ),
     _LevelData(
+      stage: 'Level 2',
       color: Colors.green,
-      targetLines: [const _Line(0, 3), const _Line(1, 2)], 
-      instruction: 'Tiru pola silang ini!',
+      targetLines: [const _Line(0, 3), const _Line(1, 2)],
+      instruction: 'Hebat! Sekarang pola silang!',
     ),
   ];
 
@@ -88,14 +98,74 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
 
   void _nextLevel() {
     if (currentLevelIndex < levels.length - 1) {
-      setState(() {
-        currentLevelIndex++;
-        currentLevel = levels[currentLevelIndex];
-        _resetLevel();
-      });
+      String oldStage = levels[currentLevelIndex].stage;
+      String newStage = levels[currentLevelIndex + 1].stage;
+
+      if (oldStage != newStage) {
+        _showStageCompleteDialog(oldStage, newStage);
+      } else {
+        setState(() {
+          currentLevelIndex++;
+          currentLevel = levels[currentLevelIndex];
+          _resetLevel();
+        });
+      }
     } else {
-      _showWinDialog();
+      _completeGame();
     }
+  }
+
+  void _completeGame() {
+    setState(() {
+      isGameWon = true;
+    });
+    ref.read(progressProvider.notifier).completeLevel(widget.levelId);
+    HapticService.success();
+    _showWinDialog();
+  }
+
+  void _showStageCompleteDialog(String completedStage, String nextStage) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Column(
+          children: [
+            const Text('Luar Biasa! 🌟', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Kamu sudah menyelesaikan $completedStage!', style: const TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.stars_rounded, size: 80, color: Colors.orangeAccent),
+            SizedBox(height: 16),
+            Text('Siap untuk tantangan berikutnya?', textAlign: TextAlign.center),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CilikTheme.primaryPastel,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                currentLevelIndex++;
+                currentLevel = levels[currentLevelIndex];
+                _resetLevel();
+              });
+            },
+            child: const Text('LANJUT!', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showWinDialog() {
@@ -103,15 +173,25 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Hebat! 🎉'),
-        content: const Text('Kamu sudah menyelesaikan semua pola garis!'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('HORREE! 🎉', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.workspace_premium_rounded, size: 100, color: Colors.amber),
+            SizedBox(height: 16),
+            Text('Kamu sang Arsitek Hebat! Semua pola sudah selesai.', textAlign: TextAlign.center),
+          ],
+        ),
         actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Back to menu
-            },
-            child: const Text('Selesai'),
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: const Text('KEMBALI KE PETA'),
+            ),
           ),
         ],
       ),
@@ -119,7 +199,6 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
   }
 
   void _checkSuccess() {
-    // Check if all target lines are present in userLines
     bool allMatched = true;
     for (var target in currentLevel.targetLines) {
       bool found = userLines.any((ul) => ul == target);
@@ -128,116 +207,106 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
 
     if (allMatched && userLines.length == currentLevel.targetLines.length) {
       HapticService.success();
-      Future.delayed(const Duration(milliseconds: 500), _nextLevel);
+      Future.delayed(const Duration(milliseconds: 600), _nextLevel);
     }
   }
 
   int? _getDotIndexAt(Offset localPos, Size size) {
     for (int i = 0; i < dotPositions.length; i++) {
       Offset pos = Offset(dotPositions[i].dx * size.width, dotPositions[i].dy * size.height);
-      if ((localPos - pos).distance < 40) {
-        return i;
-      }
+      if ((localPos - pos).distance < 50) return i;
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    int totalInStage = levels.where((l) => l.stage == currentLevel.stage).length;
+    int indexInStage = levels.sublist(0, currentLevelIndex + 1).where((l) => l.stage == currentLevel.stage).length;
+
     return Scaffold(
+      backgroundColor: CilikTheme.backgroundPastel,
       appBar: AppBar(
-        title: const Text('Tiru Garis'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Level ${widget.levelId}', style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _resetLevel),
+          IconButton(icon: const Icon(Icons.refresh_rounded, color: Colors.black54), onPressed: _resetLevel),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 24),
-          Text(
-            currentLevel.instruction,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: Row(
-              children: [
-                // Reference Panel
-                Expanded(
-                  child: _GridPanel(
-                    dotPositions: dotPositions,
-                    lines: currentLevel.targetLines,
-                    color: currentLevel.color,
-                    isInteractive: false,
-                    title: 'Contoh',
-                  ),
-                ),
-                Container(width: 2, color: Colors.grey.shade300),
-                // Drawing Panel
-                Expanded(
-                  child: GestureDetector(
-                    onPanStart: (details) {
-                      RenderBox box = context.findRenderObject() as RenderBox;
-                      Offset localPos = box.globalToLocal(details.globalPosition);
-                      // Adjust for the Expanded and AppBar
-                      // Actually, let's use a LayoutBuilder for the drawing area
-                    },
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return GestureDetector(
-                          onPanStart: (details) {
-                            int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
-                            if (index != null) {
-                              setState(() {
-                                activeStartIndex = index;
-                                currentTouchPos = details.localPosition;
-                              });
-                            }
-                          },
-                          onPanUpdate: (details) {
-                            if (activeStartIndex != null) {
-                              setState(() {
-                                currentTouchPos = details.localPosition;
-                              });
-                            }
-                          },
-                          onPanEnd: (details) {
-                            if (activeStartIndex != null && currentTouchPos != null) {
-                              int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
-                              if (endIndex != null && endIndex != activeStartIndex) {
-                                setState(() {
-                                  _Line newLine = _Line(activeStartIndex!, endIndex);
-                                  if (!userLines.any((l) => l == newLine)) {
-                                    userLines.add(newLine);
-                                    HapticService.light();
-                                    _checkSuccess();
-                                  }
-                                });
-                              }
-                            }
-                            setState(() {
-                              activeStartIndex = null;
-                              currentTouchPos = null;
-                            });
-                          },
-                          child: _GridPanel(
-                            dotPositions: dotPositions,
-                            lines: userLines,
-                            activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null,
-                            color: currentLevel.color,
-                            isInteractive: true,
-                            title: 'Gambar Disini',
-                          ),
-                        );
-                      },
+          Column(
+            children: [
+              // Progress Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${currentLevel.stage} - $indexInStage/$totalInStage', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+                        const Icon(Icons.emoji_events_rounded, color: Colors.amber),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: indexInStage / totalInStage,
+                      backgroundColor: Colors.white,
+                      valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color),
+                      borderRadius: BorderRadius.circular(10),
+                      minHeight: 12,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              Text(currentLevel.instruction, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(child: _GridPanel(dotPositions: dotPositions, lines: currentLevel.targetLines, color: currentLevel.color, isInteractive: false, title: 'CONTOH')),
+                    Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 40), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return GestureDetector(
+                            onPanStart: (details) {
+                              int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
+                              if (index != null) {
+                                setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; });
+                                HapticService.light();
+                              }
+                            },
+                            onPanUpdate: (details) { if (activeStartIndex != null) setState(() { currentTouchPos = details.localPosition; }); },
+                            onPanEnd: (details) {
+                              if (activeStartIndex != null && currentTouchPos != null) {
+                                int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
+                                if (endIndex != null && endIndex != activeStartIndex) {
+                                  setState(() {
+                                    _Line newLine = _Line(activeStartIndex!, endIndex);
+                                    if (!userLines.any((l) => l == newLine)) { userLines.add(newLine); HapticService.light(); _checkSuccess(); }
+                                  });
+                                }
+                              }
+                              setState(() { activeStartIndex = null; currentTouchPos = null; });
+                            },
+                            child: _GridPanel(dotPositions: dotPositions, lines: userLines, activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null, color: currentLevel.color, isInteractive: true, title: 'GAMBAR DISINI'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
-          const SizedBox(height: 48),
+          
+          // Confetti Layer
+          if (isGameWon) const ConfettiEffect(isPlaying: true),
         ],
       ),
     );
@@ -247,15 +316,12 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
 class _Line {
   final int start;
   final int end;
-
   const _Line(this.start, this.end);
-
   @override
   bool operator ==(Object other) {
     if (other is! _Line) return false;
     return (start == other.start && end == other.end) || (start == other.end && end == other.start);
   }
-
   @override
   int get hashCode => start.hashCode ^ end.hashCode;
 }
@@ -267,10 +333,11 @@ class _ActiveLine {
 }
 
 class _LevelData {
+  final String stage;
   final Color color;
   final List<_Line> targetLines;
   final String instruction;
-  const _LevelData({required this.color, required this.targetLines, required this.instruction});
+  const _LevelData({required this.stage, required this.color, required this.targetLines, required this.instruction});
 }
 
 class _GridPanel extends StatelessWidget {
@@ -281,41 +348,21 @@ class _GridPanel extends StatelessWidget {
   final bool isInteractive;
   final String title;
 
-  const _GridPanel({
-    required this.dotPositions,
-    required this.lines,
-    this.activeLine,
-    required this.color,
-    required this.isInteractive,
-    required this.title,
-  });
+  const _GridPanel({required this.dotPositions, required this.lines, this.activeLine, required this.color, required this.isInteractive, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(title, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 12),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(title, style: TextStyle(color: color.withOpacity(0.7), fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 1.2))),
+        const SizedBox(height: 8),
         Expanded(
           child: AspectRatio(
-            aspectRatio: 1,
+            aspectRatio: 0.8,
             child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 2),
-                ],
-              ),
-              child: CustomPaint(
-                painter: _GridPainter(
-                  dotPositions: dotPositions,
-                  lines: lines,
-                  activeLine: activeLine,
-                  color: color,
-                ),
-              ),
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 15, spreadRadius: 2, offset: const Offset(0, 5))], border: Border.all(color: color.withOpacity(0.1), width: 2)),
+              child: CustomPaint(painter: _GridPainter(dotPositions: dotPositions, lines: lines, activeLine: activeLine, color: color)),
             ),
           ),
         ),
@@ -329,51 +376,29 @@ class _GridPainter extends CustomPainter {
   final List<_Line> lines;
   final _ActiveLine? activeLine;
   final Color color;
-
-  _GridPainter({
-    required this.dotPositions,
-    required this.lines,
-    this.activeLine,
-    required this.color,
-  });
-
+  _GridPainter({required this.dotPositions, required this.lines, this.activeLine, required this.color});
   @override
   void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()
-      ..color = color.withValues(alpha: 0.8)
-      ..style = PaintingStyle.fill;
-
-    final linePaint = Paint()
-      ..color = color
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-
-    final activeLinePaint = Paint()
-      ..color = color.withValues(alpha: 0.5)
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-
-    // Draw existing lines
+    final linePaint = Paint()..color = color..strokeWidth = 12..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
+    final glowPaint = Paint()..color = color.withOpacity(0.2)..strokeWidth = 18..strokeCap = StrokeCap.round..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     for (var line in lines) {
       Offset p1 = Offset(dotPositions[line.start].dx * size.width, dotPositions[line.start].dy * size.height);
       Offset p2 = Offset(dotPositions[line.end].dx * size.width, dotPositions[line.end].dy * size.height);
+      canvas.drawLine(p1, p2, glowPaint);
       canvas.drawLine(p1, p2, linePaint);
     }
-
-    // Draw active line
     if (activeLine != null) {
       Offset p1 = Offset(dotPositions[activeLine!.startIndex].dx * size.width, dotPositions[activeLine!.startIndex].dy * size.height);
-      canvas.drawLine(p1, activeLine!.endPos, activeLinePaint);
+      canvas.drawLine(p1, activeLine!.endPos, Paint()..color = color.withOpacity(0.3)..strokeWidth = 12..strokeCap = StrokeCap.round);
     }
-
-    // Draw dots
     for (var pos in dotPositions) {
-      canvas.drawCircle(Offset(pos.dx * size.width, pos.dy * size.height), 20, dotPaint);
-      // Shine on dots
-      canvas.drawCircle(Offset(pos.dx * size.width - 6, pos.dy * size.height - 6), 6, Paint()..color = Colors.white.withOpacity(0.3));
+      Offset center = Offset(pos.dx * size.width, pos.dy * size.height);
+      canvas.drawCircle(center, 20, Paint()..color = color.withOpacity(0.8));
+      canvas.drawCircle(center, 15, Paint()..color = Colors.white.withOpacity(0.2));
+      canvas.drawCircle(center, 12, Paint()..color = color);
+      canvas.drawCircle(center.translate(-5, -5), 5, Paint()..color = Colors.white.withOpacity(0.3));
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

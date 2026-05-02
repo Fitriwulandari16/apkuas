@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 //import 'package:apkuas/features/coding/coding_workspace.dart';
 import 'package:apkuas/features/level_selection_screen.dart';
+import 'package:apkuas/features/adventure_map_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,6 +85,18 @@ class MainMenuScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const LevelSelectionScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                _MenuButton(
+                  title: 'Peta Petualangan',
+                  icon: Icons.map_rounded,
+                  color: Colors.blue.shade200,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AdventureMapScreen()),
                     );
                   },
                 ),
