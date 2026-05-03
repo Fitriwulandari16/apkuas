@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/features/matching/matching_balloon_screen.dart';
 import 'package:apkuas/features/spatial/line_tracing_screen.dart';
+import 'package:apkuas/features/spatial/advanced_line_tracing_screen.dart';
+import 'package:apkuas/features/spatial/object_relation_screen.dart';
+import 'package:apkuas/features/spatial/shape_matching_screen.dart';
 
 class LevelSelectionScreen extends StatelessWidget {
   const LevelSelectionScreen({super.key});
@@ -22,22 +25,18 @@ class LevelSelectionScreen extends StatelessWidget {
             icon: Icons.search_rounded,
             levels: [
               _LevelItem(
-                title: 'Mencocokkan Balon',
+                title: 'Mencocokkan Balon (Lvl 3)',
                 icon: Icons.bubble_chart_rounded,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MatchingBalloonScreen()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchingBalloonScreen()));
                 },
               ),
               _LevelItem(
-                title: 'Mencocokkan Bentuk',
+                title: 'Mencocokkan Bentuk (Lvl 5)',
                 icon: Icons.category_rounded,
                 onTap: () {
-                  // TODO: Implement Shape Matching
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ShapeMatchingScreen()));
                 },
-                isLocked: true,
               ),
             ],
           ),
@@ -50,31 +49,27 @@ class LevelSelectionScreen extends StatelessWidget {
             isLocked: false,
             levels: [
               _LevelItem(
-                title: 'Tiru Garis',
+                title: 'Tiru Garis Dasar (Lvl 1)',
                 icon: Icons.gesture_rounded,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LineTracingScreen()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LineTracingScreen()));
                 },
               ),
               _LevelItem(
-                title: 'Puzzle Gunting',
-                icon: Icons.content_cut_rounded,
-                onTap: () {},
-                isLocked: true,
+                title: 'Garis Majemuk (Lvl 2)',
+                icon: Icons.gesture_rounded,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdvancedLineTracingScreen()));
+                },
+              ),
+              _LevelItem(
+                title: 'Hubungkan Objek (Lvl 4)',
+                icon: Icons.link_rounded,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ObjectRelationScreen()));
+                },
               ),
             ],
-          ),
-          const SizedBox(height: 24),
-          _StageCard(
-            title: 'Tahap 3: Ahli Logika',
-            description: 'Pecahkan misteri dengan logika.',
-            color: CilikTheme.accentPastel,
-            icon: Icons.psychology_rounded,
-            levels: [],
-            isLocked: true,
           ),
         ],
       ),

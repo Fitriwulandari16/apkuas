@@ -7,26 +7,44 @@ final progressProvider = StateNotifierProvider<ProgressNotifier, int>((ref) {
 
 class ProgressNotifier extends StateNotifier<int> {
   ProgressNotifier() : super(1) {
-    _loadProgress();
+    loadProgress();
   }
 
-  void _loadProgress() {
-    final box = Hive.box('progress');
-    state = box.get('unlockedLevel', defaultValue: 1);
+  void loadProgress() {
+    try {
+      final box = Hive.box('progress');
+      state = box.get('unlockedLevel', defaultValue: 1);
+      print('DEBUG: Data Progress Dimuat. Level Terbuka: $state');
+    } catch (e) {
+      print('DEBUG: Gagal memuat progress: $e');
+    }
+  }
+
+  void saveProgress() {
+    try {
+      final box = Hive.box('progress');
+      box.put('unlockedLevel', state);
+      print('DEBUG: Data Progress Disimpan. Level Terbuka: $state');
+    } catch (e) {
+      print('DEBUG: Gagal menyimpan progress: $e');
+    }
   }
 
   void completeLevel(int levelId) {
-    // If user completes the current highest unlocked level, unlock the next one
+    print('DEBUG: Mencoba menyelesaikan Level $levelId. Status saat ini: $state');
     if (levelId == state) {
       state = state + 1;
-      final box = Hive.box('progress');
-      box.put('unlockedLevel', state);
+      saveProgress();
+      print('DEBUG: Level Berhasil Diupdate! Level Terbuka Sekarang: $state');
+    } else if (levelId < state) {
+      print('DEBUG: Level $levelId sudah pernah diselesaikan sebelumnya.');
+    } else {
+      print('DEBUG: Level $levelId tidak bisa diselesaikan sekarang (belum giliran).');
     }
   }
 
   void resetProgress() {
     state = 1;
-    final box = Hive.box('progress');
-    box.put('unlockedLevel', 1);
+    saveProgress();
   }
 }

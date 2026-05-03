@@ -5,30 +5,30 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
 
-class LineTracingScreen extends ConsumerStatefulWidget {
+class AdvancedLineTracingScreen extends ConsumerStatefulWidget {
   final int levelId;
-  const LineTracingScreen({super.key, this.levelId = 1});
+  const AdvancedLineTracingScreen({super.key, this.levelId = 2});
 
   @override
-  ConsumerState<LineTracingScreen> createState() => _LineTracingScreenState();
+  ConsumerState<AdvancedLineTracingScreen> createState() => _AdvancedLineTracingScreenState();
 }
 
-class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
+class _AdvancedLineTracingScreenState extends ConsumerState<AdvancedLineTracingScreen> {
   final List<Offset> dotPositions = [
-    const Offset(0.25, 0.25), // Top-left
-    const Offset(0.75, 0.25), // Top-right
-    const Offset(0.25, 0.75), // Bottom-left
-    const Offset(0.75, 0.75), // Bottom-right
+    const Offset(0.25, 0.25),
+    const Offset(0.75, 0.25),
+    const Offset(0.25, 0.75),
+    const Offset(0.75, 0.75),
   ];
 
   late _LevelData currentLevel;
   int currentLevelIndex = 0;
 
   final List<_LevelData> levels = [
-    _LevelData(stage: 'Tantangan 1', color: Colors.yellow, targetLines: [const _Line(0, 2)], instruction: 'Tiru garis tegak ini!'),
-    _LevelData(stage: 'Tantangan 2', color: Colors.red, targetLines: [const _Line(1, 3)], instruction: 'Tiru garis tegak di kanan!'),
-    _LevelData(stage: 'Tantangan 3', color: Colors.blue, targetLines: [const _Line(2, 1)], instruction: 'Tiru garis miring ini!'),
-    _LevelData(stage: 'Tantangan 4', color: Colors.green, targetLines: [const _Line(0, 1), const _Line(2, 3)], instruction: 'Tiru dua garis datar ini!'),
+    _LevelData(stage: 'Tantangan 1', color: Colors.yellow, targetLines: [const _Line(0, 1), const _Line(1, 2)], instruction: 'Ayo buat pola garis kuning!'),
+    _LevelData(stage: 'Tantangan 2', color: Colors.red, targetLines: [const _Line(0, 1), const _Line(0, 2), const _Line(2, 3)], instruction: 'Tiru pola garis merah ini!'),
+    _LevelData(stage: 'Tantangan 3', color: Colors.blue, targetLines: [const _Line(2, 1), const _Line(1, 3)], instruction: 'Bisa buat pola biru ini?'),
+    _LevelData(stage: 'Tantangan 4', color: Colors.green, targetLines: [const _Line(0, 3), const _Line(1, 2)], instruction: 'Hebat! Sekarang pola silang!'),
   ];
 
   List<_Line> userLines = [];
@@ -37,14 +37,9 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
   bool _showCelebration = false;
 
   @override
-  void initState() {
-    super.initState();
-    currentLevel = levels[currentLevelIndex];
-  }
+  void initState() { super.initState(); currentLevel = levels[currentLevelIndex]; }
 
-  void _resetLevel() {
-    setState(() { userLines = []; activeStartIndex = null; currentTouchPos = null; });
-  }
+  void _resetLevel() { setState(() { userLines = []; activeStartIndex = null; currentTouchPos = null; }); }
 
   void _nextLevel() {
     if (currentLevelIndex < levels.length - 1) {
@@ -57,9 +52,7 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
   void _completeGame() {
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
     setState(() => _showCelebration = true);
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) _showWinDialog();
-    });
+    Future.delayed(const Duration(milliseconds: 1500), () { if (mounted) _showWinDialog(); });
   }
 
   void _showWinDialog() {
@@ -68,16 +61,16 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        title: const Text('HEBAT! 🎉', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.orange)),
-        content: const Text('Level 1 Selesai! Kamu siap untuk tantangan berikutnya?', textAlign: TextAlign.center),
+        title: const Text('LUAR BIASA! 🎉', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.orange)),
+        content: const Text('Level 2 Selesai! Kamu arsitek yang sangat pintar!', textAlign: TextAlign.center),
         actions: [
           Center(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
               onPressed: () {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LevelTransitionScreen(nextLevelId: 2)));
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LevelTransitionScreen(nextLevelId: 3)));
               },
-              child: const Text('LANJUT KE LEVEL 2', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: const Text('LANJUT KE LEVEL 3', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -87,13 +80,8 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
 
   void _checkSuccess() {
     bool allMatched = true;
-    for (var target in currentLevel.targetLines) {
-      if (!userLines.any((ul) => ul == target)) allMatched = false;
-    }
-    if (allMatched && userLines.length == currentLevel.targetLines.length) {
-      HapticService.success();
-      Future.delayed(const Duration(milliseconds: 600), _nextLevel);
-    }
+    for (var target in currentLevel.targetLines) { if (!userLines.any((ul) => ul == target)) allMatched = false; }
+    if (allMatched && userLines.length == currentLevel.targetLines.length) { HapticService.success(); Future.delayed(const Duration(milliseconds: 600), _nextLevel); }
   }
 
   int? _getDotIndexAt(Offset localPos, Size size) {
@@ -110,7 +98,7 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
       children: [
         Scaffold(
           backgroundColor: CilikTheme.backgroundPastel,
-          appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Tiru Garis Dasar', style: TextStyle(fontWeight: FontWeight.bold))),
+          appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Garis Majemuk', style: TextStyle(fontWeight: FontWeight.bold))),
           body: Column(
             children: [
               Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: LinearProgressIndicator(value: (currentLevelIndex + 1) / levels.length, backgroundColor: Colors.white, valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color), borderRadius: BorderRadius.circular(10), minHeight: 12)),
@@ -159,23 +147,17 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
 }
 
 class _Line {
-  final int start; final int end;
-  const _Line(this.start, this.end);
-  @override
-  bool operator ==(Object other) => other is _Line && ((start == other.start && end == other.end) || (start == other.end && end == other.start));
-  @override
-  int get hashCode => start.hashCode ^ end.hashCode;
+  final int start; final int end; const _Line(this.start, this.end);
+  @override bool operator ==(Object other) => other is _Line && ((start == other.start && end == other.end) || (start == other.end && end == other.start));
+  @override int get hashCode => start.hashCode ^ end.hashCode;
 }
-
 class _ActiveLine { final int startIndex; final Offset endPos; const _ActiveLine(this.startIndex, this.endPos); }
-
 class _LevelData { final String stage; final Color color; final List<_Line> targetLines; final String instruction; const _LevelData({required this.stage, required this.color, required this.targetLines, required this.instruction}); }
 
 class _GridPanel extends StatelessWidget {
   final List<Offset> dotPositions; final List<_Line> lines; final _ActiveLine? activeLine; final Color color; final bool isInteractive; final String title;
   const _GridPanel({required this.dotPositions, required this.lines, this.activeLine, required this.color, required this.isInteractive, required this.title});
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     return Column(
       children: [
         Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(title, style: TextStyle(color: color.withOpacity(0.7), fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.2))),
@@ -189,8 +171,7 @@ class _GridPanel extends StatelessWidget {
 class _GridPainter extends CustomPainter {
   final List<Offset> dotPositions; final List<_Line> lines; final _ActiveLine? activeLine; final Color color;
   _GridPainter({required this.dotPositions, required this.lines, this.activeLine, required this.color});
-  @override
-  void paint(Canvas canvas, Size size) {
+  @override void paint(Canvas canvas, Size size) {
     final linePaint = Paint()..color = color..strokeWidth = 14..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
     final activeLinePaint = Paint()..color = color.withOpacity(0.4)..strokeWidth = 14..strokeCap = StrokeCap.round;
     for (var line in lines) { canvas.drawLine(Offset(dotPositions[line.start].dx * size.width, dotPositions[line.start].dy * size.height), Offset(dotPositions[line.end].dx * size.width, dotPositions[line.end].dy * size.height), linePaint); }
@@ -202,8 +183,7 @@ class _GridPainter extends CustomPainter {
       canvas.drawCircle(center.translate(-6, -6), 6, Paint()..color = Colors.white.withOpacity(0.4));
     }
   }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class _ConfettiOverlay extends StatefulWidget { const _ConfettiOverlay(); @override State<_ConfettiOverlay> createState() => _ConfettiOverlayState(); }
