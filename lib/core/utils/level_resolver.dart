@@ -5,6 +5,9 @@ import 'package:apkuas/features/matching/matching_balloon_screen.dart';
 import 'package:apkuas/features/spatial/object_relation_screen.dart';
 import 'package:apkuas/features/spatial/shape_matching_screen.dart';
 import 'package:apkuas/features/spatial/conditional_drawing_screen.dart';
+import 'package:apkuas/features/spatial/multi_step_conditional_drawing_screen.dart';
+import 'package:apkuas/features/matching/flower_matching_screen.dart';
+import 'package:apkuas/features/matching/shape_line_matching_screen.dart';
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -21,6 +24,12 @@ class LevelResolver {
         return const ShapeMatchingScreen(levelId: 5);
       case 6:
         return const ConditionalDrawingScreen(levelId: 6);
+      case 7:
+        return const MultiStepConditionalDrawingScreen(levelId: 7);
+      case 8:
+        return const FlowerMatchingScreen(levelId: 8);
+      case 9:
+        return const ShapeLineMatchingScreen(levelId: 9);
       default:
         // Fallback or placeholder for future levels
         return Scaffold(
