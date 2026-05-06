@@ -106,50 +106,89 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    double progress = (currentLevelIndex + 1) / levels.length;
+
     return Stack(
       children: [
         Scaffold(
           backgroundColor: CilikTheme.backgroundPastel,
-          appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Tiru Garis Dasar', style: TextStyle(fontWeight: FontWeight.bold))),
-          body: Column(
-            children: [
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: LinearProgressIndicator(value: (currentLevelIndex + 1) / levels.length, backgroundColor: Colors.white, valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color), borderRadius: BorderRadius.circular(10), minHeight: 12)),
-              const SizedBox(height: 32),
-              Text(currentLevel.instruction, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 32),
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(child: _GridPanel(dotPositions: dotPositions, lines: currentLevel.targetLines, color: currentLevel.color, isInteractive: false, title: 'CONTOH')),
-                    Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 40), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return GestureDetector(
-                            onPanStart: (details) {
-                              int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
-                              if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
-                            },
-                            onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
-                            onPanEnd: (details) {
-                              if (activeStartIndex != null && currentTouchPos != null) {
-                                int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
-                                if (endIndex != null && endIndex != activeStartIndex) {
-                                  setState(() { _Line newLine = _Line(activeStartIndex!, endIndex); if (!userLines.any((l) => l == newLine)) { userLines.add(newLine); HapticService.light(); _checkSuccess(); } });
-                                }
-                              }
-                              setState(() { activeStartIndex = null; currentTouchPos = null; });
-                            },
-                            child: _GridPanel(dotPositions: dotPositions, lines: userLines, activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null, color: currentLevel.color, isInteractive: true, title: 'GAMBAR DISINI'),
-                          );
-                        },
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Custom Header with Progress Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const Expanded(
+                            child: Text(
+                              'Tiru Garis Dasar',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown),
+                            ),
+                          ),
+                          const SizedBox(width: 40),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 10,
+                          backgroundColor: Colors.white,
+                          valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 60),
-            ],
+                
+                const SizedBox(height: 20),
+
+                Text(currentLevel.instruction, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(child: _GridPanel(dotPositions: dotPositions, lines: currentLevel.targetLines, color: currentLevel.color, isInteractive: false, title: 'CONTOH')),
+                      Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 40), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return GestureDetector(
+                              onPanStart: (details) {
+                                int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
+                                if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
+                              },
+                              onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
+                              onPanEnd: (details) {
+                                if (activeStartIndex != null && currentTouchPos != null) {
+                                  int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
+                                  if (endIndex != null && endIndex != activeStartIndex) {
+                                    setState(() { _Line newLine = _Line(activeStartIndex!, endIndex); if (!userLines.any((l) => l == newLine)) { userLines.add(newLine); HapticService.light(); _checkSuccess(); } });
+                                  }
+                                }
+                                setState(() { activeStartIndex = null; currentTouchPos = null; });
+                              },
+                              child: _GridPanel(dotPositions: dotPositions, lines: userLines, activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null, color: currentLevel.color, isInteractive: true, title: 'GAMBAR DISINI'),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
         if (_showCelebration) const IgnorePointer(child: _ConfettiOverlay()),

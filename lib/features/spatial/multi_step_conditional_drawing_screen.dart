@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
@@ -15,8 +14,6 @@ class MultiStepConditionalDrawingScreen extends ConsumerStatefulWidget {
 }
 
 class _MultiStepConditionalDrawingScreenState extends ConsumerState<MultiStepConditionalDrawingScreen> {
-  // Grid layout (5 rows x 3 columns)
-  // R = Red, B = Blue, Y = Yellow
   final List<List<String>> grid = [
     ['R', 'B', 'Y'],
     ['R', 'B', 'Y'],
@@ -25,7 +22,6 @@ class _MultiStepConditionalDrawingScreenState extends ConsumerState<MultiStepCon
     ['Y', 'R', 'B'],
   ];
 
-  // State: 'r-c' -> { 'h': bool, 'v': bool }
   Map<String, Map<String, bool>> completionState = {};
   bool _showCelebration = false;
 
@@ -97,63 +93,82 @@ class _MultiStepConditionalDrawingScreenState extends ConsumerState<MultiStepCon
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            title: const Text('Algoritma: Kondisional Lanjut', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Legend Header
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.orange.withOpacity(0.1)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text('KUNCI PETUNJUK', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.orange, letterSpacing: 1.2)),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _LegendItem(color: Colors.red, icon: Icons.maximize_rounded, rotate: false, label: 'Datar'),
-                          _LegendItem(color: Colors.blue, icon: Icons.maximize_rounded, rotate: true, label: 'Tegak'),
-                          _LegendItem(color: Colors.yellow, icon: Icons.add_rounded, rotate: false, label: 'Tambah'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 40),
-                  child: Text('Perhatikan warnanya dan buat garis yang tepat!', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54)),
-                ),
-                const SizedBox(height: 20),
-
-                // Game Grid
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: List.generate(grid.length, (r) {
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(grid[r].length, (c) {
-                          return _MultiStepCircle(
-                            type: grid[r][c],
-                            state: completionState['$r-$c']!,
-                            onStepSuccess: (step) => _onStepSuccess(r, c, step),
-                          );
-                        }),
-                      );
-                    }),
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
+            centerTitle: true,
+            title: const Text('Algoritma: Kondisional Lanjut', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 16)),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.blueGrey, size: 20),
+              onPressed: () => Navigator.pop(context),
             ),
+          ),
+          body: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Compact Legend Header
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withOpacity(0.1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _LegendItem(color: Colors.red, icon: Icons.maximize_rounded, rotate: false, label: 'Datar'),
+                    _LegendItem(color: Colors.blue, icon: Icons.maximize_rounded, rotate: true, label: 'Tegak'),
+                    _LegendItem(color: Colors.yellow, icon: Icons.add_rounded, rotate: false, label: 'Tambah'),
+                  ],
+                ),
+              ),
+
+              const Text(
+                'Perhatikan warnanya dan buat garis yang tepat!', 
+                textAlign: TextAlign.center, 
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+              ),
+
+              // Responsive Game Grid Area
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate available space and circle diameter
+                    double maxWidth = constraints.maxWidth;
+                    double maxHeight = constraints.maxHeight;
+                    
+                    // Diameter logic: 5 rows, 3 columns.
+                    // We need to fit 5 rows vertically. 
+                    // Each row has padding (2) + circle (diameter) + margin (4*2 = 8).
+                    // Total per row = diameter + 10.
+                    double diameter = math.min(
+                      (maxWidth - 40) / 3, 
+                      (maxHeight - 60) / 5
+                    ).clamp(10.0, 100.0); // Remove 40.0 min, use 10.0
+
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(grid.length, (r) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(grid[r].length, (c) {
+                              return _MultiStepCircle(
+                                size: diameter,
+                                type: grid[r][c],
+                                state: completionState['$r-$c']!,
+                                onStepSuccess: (step) => _onStepSuccess(r, c, step),
+                              );
+                            }),
+                          ),
+                        );
+                      }),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
           ),
         ),
         if (_showCelebration) const IgnorePointer(child: _ConfettiOverlay()),
@@ -176,29 +191,30 @@ class _LegendItem extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(width: 32, height: 32, decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.black12))),
-            const SizedBox(width: 6),
-            const Text('=', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 6),
+            Container(width: 24, height: 24, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 4),
+            const Text('=', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 4),
             Transform.rotate(
               angle: rotate ? math.pi / 2 : 0,
-              child: Icon(icon, size: 24, color: Colors.black87),
+              child: Icon(icon, size: 20, color: Colors.black87),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black38)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black38)),
       ],
     );
   }
 }
 
 class _MultiStepCircle extends StatefulWidget {
+  final double size;
   final String type;
   final Map<String, bool> state;
   final Function(String) onStepSuccess;
 
-  const _MultiStepCircle({required this.type, required this.state, required this.onStepSuccess});
+  const _MultiStepCircle({required this.size, required this.type, required this.state, required this.onStepSuccess});
 
   @override
   State<_MultiStepCircle> createState() => _MultiStepCircleState();
@@ -268,7 +284,6 @@ class _MultiStepCircleState extends State<_MultiStepCircle> with TickerProviderS
   @override
   Widget build(BuildContext context) {
     Color circleColor = widget.type == 'R' ? Colors.red : (widget.type == 'B' ? Colors.blue : Colors.yellow);
-    bool isFullComplete = widget.type == 'Y' ? (widget.state['h']! && widget.state['v']!) : (widget.type == 'R' ? widget.state['h']! : widget.state['v']!);
 
     return GestureDetector(
       onPanEnd: (details) => _handleSwipe(details.velocity.pixelsPerSecond),
@@ -278,25 +293,25 @@ class _MultiStepCircleState extends State<_MultiStepCircle> with TickerProviderS
           AnimatedBuilder(
             animation: _shakeController,
             builder: (context, child) {
-              final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
+              final double offset = math.sin(_shakeController.value * math.pi * 4) * 6 * (1 - _shakeController.value);
               return Transform.translate(offset: Offset(offset, 0), child: child);
             },
             child: Container(
-              width: 80, height: 80,
-              margin: const EdgeInsets.all(12),
+              width: widget.size,
+              height: widget.size,
+              margin: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: circleColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.black12),
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
               ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   if (widget.state['h']!)
-                    Container(width: 50, height: 4, color: Colors.black87),
+                    Container(width: widget.size * 0.7, height: 4, color: Colors.black87),
                   if (widget.state['v']!)
-                    Container(width: 4, height: 50, color: Colors.black87),
+                    Container(width: 4, height: widget.size * 0.7, color: Colors.black87),
                 ],
               ),
             ),
@@ -311,7 +326,7 @@ class _MultiStepCircleState extends State<_MultiStepCircle> with TickerProviderS
                     opacity: 1 - _sparkleController.value,
                     child: Transform.scale(
                       scale: 1 + (_sparkleController.value * 1.5),
-                      child: const Icon(Icons.auto_awesome, color: Colors.white, size: 60),
+                      child: Icon(Icons.auto_awesome, color: Colors.white, size: widget.size * 0.8),
                     ),
                   );
                 },
@@ -325,45 +340,24 @@ class _MultiStepCircleState extends State<_MultiStepCircle> with TickerProviderS
 
 class _ConfettiOverlay extends StatefulWidget {
   const _ConfettiOverlay();
-  @override
-  State<_ConfettiOverlay> createState() => _ConfettiOverlayState();
+  @override State<_ConfettiOverlay> createState() => _ConfettiOverlayState();
 }
 
 class _ConfettiOverlayState extends State<_ConfettiOverlay> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..forward();
-  }
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) => CustomPaint(
-        size: Size.infinite,
-        painter: _ConfettiPainter(progress: _controller.value),
-      ),
-    );
-  }
+  @override void initState() { super.initState(); _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..forward(); }
+  @override void dispose() { _controller.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) { return AnimatedBuilder(animation: _controller, builder: (context, child) => CustomPaint(size: Size.infinite, painter: _ConfettiPainter(progress: _controller.value))); }
 }
 
 class _ConfettiPainter extends CustomPainter {
-  final double progress;
-  _ConfettiPainter({required this.progress});
-  @override
-  void paint(Canvas canvas, Size size) {
+  final double progress; _ConfettiPainter({required this.progress});
+  @override void paint(Canvas canvas, Size size) {
     final colors = [Colors.red, Colors.blue, Colors.green, Colors.yellow, Colors.pink, Colors.orange];
     for (int i = 0; i < 60; i++) {
       final paint = Paint()..color = colors[i % colors.length].withOpacity(1.0 - progress);
       canvas.drawRect(Rect.fromLTWH((i * 137.5 % 1.0) * size.width, progress * size.height * (1.0 + (i % 8) / 10.0) - 100, 12, 12), paint);
     }
   }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

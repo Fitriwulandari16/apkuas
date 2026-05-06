@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:apkuas/core/theme/cilik_theme.dart';
+//import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
@@ -30,9 +30,6 @@ class _FlowerMatchingScreenState extends ConsumerState<FlowerMatchingScreen> {
   Offset? currentDragEnd;
   Color? activeDragColor;
 
-  final Map<Color, GlobalKey> startKeys = {};
-  final Map<Color, GlobalKey> endKeys = {};
-
   bool _isComplete = false;
 
   @override
@@ -43,10 +40,6 @@ class _FlowerMatchingScreenState extends ConsumerState<FlowerMatchingScreen> {
 
   void _resetLevel() {
     targetColors = List.from(flowerColors)..shuffle();
-    for (var color in flowerColors) {
-      startKeys[color] = GlobalKey();
-      endKeys[color] = GlobalKey();
-    }
     matched = {for (var c in flowerColors) c: false};
     connections = [];
     _isComplete = false;
@@ -67,47 +60,58 @@ class _FlowerMatchingScreenState extends ConsumerState<FlowerMatchingScreen> {
     });
   }
 
-  void _handleDragStart(Color color, Offset pos) {
-    if (matched[color]!) return;
-    setState(() {
-      activeDragColor = color;
-      currentDragStart = pos;
-      currentDragEnd = pos;
-    });
-    HapticService.light();
+  Offset _getItemCenter(int index, bool isLeft, Size areaSize) {
+    // Exact center points for the anchors
+    double x = isLeft ? 100 : areaSize.width - 100; 
+    double segmentHeight = areaSize.height / flowerColors.length;
+    double y = (index + 0.5) * segmentHeight;
+    return Offset(x, y);
   }
 
-  void _handleDragUpdate(Offset pos) {
-    if (activeDragColor == null) return;
-    setState(() => currentDragEnd = pos);
+  void _handleDragStart(Offset localPos, Size areaSize) {
+    for (int i = 0; i < flowerColors.length; i++) {
+      final color = flowerColors[i];
+      if (matched[color]!) continue;
+      
+      final center = _getItemCenter(i, true, areaSize);
+      if ((localPos - center).distance < 60) {
+        setState(() {
+          activeDragColor = color;
+          currentDragStart = center;
+          currentDragEnd = localPos;
+        });
+        HapticService.light();
+        return;
+      }
+    }
   }
 
-  void _handleDragEnd(Offset pos) {
+  void _handleDragUpdate(Offset localPos) {
+    if (activeDragColor == null) return;
+    setState(() => currentDragEnd = localPos);
+  }
+
+  void _handleDragEnd(Offset localPos, Size areaSize) {
     if (activeDragColor == null) return;
 
-    Color? hitColor;
-    for (var entry in endKeys.entries) {
-      final RenderBox? box = entry.value.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final boxPos = box.localToGlobal(Offset.zero);
-        final size = box.size;
-        if (Rect.fromLTWH(boxPos.dx, boxPos.dy, size.width, size.height).contains(pos)) {
-          hitColor = entry.key;
-          break;
+    int? hitIndex;
+    for (int i = 0; i < targetColors.length; i++) {
+      final center = _getItemCenter(i, false, areaSize);
+      if ((localPos - center).distance < 60) {
+        if (targetColors[i] == activeDragColor) {
+          hitIndex = i;
         }
+        break;
       }
     }
 
-    if (hitColor != null && hitColor == activeDragColor) {
-      final RenderBox startBox = startKeys[activeDragColor!]!.currentContext!.findRenderObject() as RenderBox;
-      final RenderBox endBox = endKeys[hitColor]!.currentContext!.findRenderObject() as RenderBox;
-      
+    if (hitIndex != null) {
       setState(() {
         matched[activeDragColor!] = true;
         connections.add(_Connection(
           color: activeDragColor!,
-          start: startBox.localToGlobal(Offset(startBox.size.width / 2, startBox.size.height / 2)),
-          end: endBox.localToGlobal(Offset(endBox.size.width / 2, endBox.size.height / 2)),
+          start: currentDragStart!,
+          end: _getItemCenter(hitIndex!, false, areaSize),
         ));
       });
       HapticService.success();
@@ -125,94 +129,164 @@ class _FlowerMatchingScreenState extends ConsumerState<FlowerMatchingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: const Text('Cocokkan Warna Bunga', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown)),
-          ),
-          body: Stack(
+    double progress = matched.values.where((v) => v).length / flowerColors.length;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(progress),
+            const SizedBox(height: 10),
+            _buildInstruction(),
+            const SizedBox(height: 10),
+
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final areaSize = Size(constraints.maxWidth, constraints.maxHeight);
+                  return GestureDetector(
+                    onPanStart: (d) => _handleDragStart(d.localPosition, areaSize),
+                    onPanUpdate: (d) => _handleDragUpdate(d.localPosition),
+                    onPanEnd: (d) => _handleDragEnd(d.localPosition, areaSize),
+                    child: Stack(
+                      children: [
+                        // Background (transparent but takes space for hits)
+                        Container(color: Colors.transparent),
+
+                        // Lines Layer
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _LinePainter(
+                              connections: connections,
+                              activeStart: currentDragStart,
+                              activeEnd: currentDragEnd,
+                              activeColor: activeDragColor,
+                            ),
+                          ),
+                        ),
+
+                        // Left Column (Flowers)
+                        ...List.generate(flowerColors.length, (i) {
+                          final color = flowerColors[i];
+                          final center = _getItemCenter(i, true, areaSize);
+                          return Positioned(
+                            left: center.dx - 85, // 70 width + 15 anchor offset
+                            top: center.dy - 35,
+                            child: _buildVisualItem(color, true),
+                          );
+                        }),
+
+                        // Right Column (Watering Cans)
+                        ...List.generate(targetColors.length, (i) {
+                          final color = targetColors[i];
+                          final center = _getItemCenter(i, false, areaSize);
+                          return Positioned(
+                            left: center.dx - 15, // Anchor starts here
+                            top: center.dy - 35,
+                            child: _buildVisualItem(color, false),
+                          );
+                        }),
+
+                        if (_isComplete) const IgnorePointer(child: _ConfettiOverlay()),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(double progress) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: [
+          Row(
             children: [
-              // Legend/Instruction
-              Positioned(
-                top: 0, left: 0, right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                    child: const Text('Hubungkan Bunga ke Penyiram yang warnanya sama!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                  ),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const Expanded(
+                child: Text(
+                  'Cocokkan Warna Bunga',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown),
                 ),
               ),
-
-              // Lines Layer
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _LinePainter(
-                    connections: connections,
-                    activeStart: currentDragStart,
-                    activeEnd: currentDragEnd,
-                    activeColor: activeDragColor,
-                    context: context,
-                  ),
-                ),
-              ),
-
-              // Objects Layer
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Flowers
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: flowerColors.map((color) => _buildItem(color, true)).toList(),
-                    ),
-                    // Watering Cans
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: targetColors.map((color) => _buildItem(color, false)).toList(),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 40),
             ],
           ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: Colors.brown.withOpacity(0.1),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstruction() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+        child: const Text('Hubungkan Bunga ke Penyiram yang warnanya sama!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.green)),
+      ),
+    );
+  }
+
+  Widget _buildVisualItem(Color color, bool isLeft) {
+    final bool isMatched = matched[color]!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!isLeft) _buildVisualAnchor(color),
+        Container(
+          width: 70, height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(isMatched ? 0.4 : 0.1),
+                blurRadius: isMatched ? 20 : 10,
+                spreadRadius: isMatched ? 5 : 0,
+              )
+            ],
+            border: Border.all(color: isMatched ? color : Colors.grey.shade200, width: 3),
+          ),
+          child: Icon(
+            isLeft ? Icons.local_florist_rounded : Icons.opacity_rounded,
+            color: color, size: 36,
+          ),
         ),
-        if (_isComplete) const IgnorePointer(child: _ConfettiOverlay()),
+        if (isLeft) _buildVisualAnchor(color),
       ],
     );
   }
 
-  Widget _buildItem(Color color, bool isStart) {
-    return GestureDetector(
-      onPanStart: isStart ? (d) => _handleDragStart(color, d.globalPosition) : null,
-      onPanUpdate: isStart ? (d) => _handleDragUpdate(d.globalPosition) : null,
-      onPanEnd: isStart ? (d) => _handleDragEnd(d.globalPosition) : null,
-      child: Column(
-        children: [
-          Container(
-            key: isStart ? startKeys[color] : endKeys[color],
-            width: 70, height: 70,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, spreadRadius: 2)],
-              border: Border.all(color: matched[color]! ? color : Colors.grey.shade200, width: 3),
-            ),
-            child: Icon(
-              isStart ? Icons.local_florist_rounded : Icons.opacity_rounded,
-              color: color, size: 40,
-            ),
-          ),
-          const SizedBox(height: 4),
-          if (matched[color]! && isStart) 
-            const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
-        ],
+  Widget _buildVisualAnchor(Color color) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      width: 12, height: 12,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 4)],
       ),
     );
   }
@@ -226,29 +300,30 @@ class _Connection {
 class _LinePainter extends CustomPainter {
   final List<_Connection> connections;
   final Offset? activeStart; final Offset? activeEnd; final Color? activeColor;
-  final BuildContext context;
 
-  _LinePainter({required this.connections, this.activeStart, this.activeEnd, this.activeColor, required this.context});
+  _LinePainter({required this.connections, this.activeStart, this.activeEnd, this.activeColor});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..strokeWidth = 5..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final canvasOffset = renderBox.localToGlobal(Offset.zero);
+    final paint = Paint()
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
 
     for (var conn in connections) {
-      paint.color = conn.color.withOpacity(0.8);
-      canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
-      // Draw end circles
-      canvas.drawCircle(conn.start - canvasOffset, 6, paint..style = PaintingStyle.fill);
-      canvas.drawCircle(conn.end - canvasOffset, 6, paint..style = PaintingStyle.fill);
-      paint.style = PaintingStyle.stroke;
+      paint.color = conn.color;
+      canvas.drawLine(conn.start, conn.end, paint);
+      
+      final dotPaint = Paint()..color = conn.color..style = PaintingStyle.fill;
+      canvas.drawCircle(conn.start, 5, dotPaint);
+      canvas.drawCircle(conn.end, 5, dotPaint);
     }
 
     if (activeStart != null && activeEnd != null && activeColor != null) {
-      paint.color = activeColor!.withOpacity(0.4);
-      paint.strokeWidth = 8;
-      canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
+      paint.color = activeColor!.withOpacity(0.5);
+      paint.strokeWidth = 3.5;
+      canvas.drawLine(activeStart!, activeEnd!, paint);
+      canvas.drawCircle(activeStart!, 6, Paint()..color = activeColor!..style = PaintingStyle.fill);
     }
   }
 

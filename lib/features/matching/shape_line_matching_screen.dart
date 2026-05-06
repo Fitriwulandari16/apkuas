@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:apkuas/core/theme/cilik_theme.dart';
+//import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
@@ -19,7 +19,7 @@ class _ShapeLineMatchingScreenState extends ConsumerState<ShapeLineMatchingScree
     _ShapeData(Icons.circle, Colors.yellow.shade700, 'Lingkaran'),
     _ShapeData(Icons.change_history, Colors.blue, 'Segitiga'),
     _ShapeData(Icons.favorite, Colors.pink, 'Hati'),
-    _ShapeData(Icons.rectangle, Colors.green, 'Persegi Panjang'),
+    _ShapeData(Icons.rectangle, Colors.green, 'Persegi'),
     _ShapeData(Icons.star, Colors.purple, 'Bintang'),
   ];
 
@@ -31,9 +31,6 @@ class _ShapeLineMatchingScreenState extends ConsumerState<ShapeLineMatchingScree
   Offset? currentDragEnd;
   int? activeDragIndex;
 
-  final Map<int, GlobalKey> startKeys = {};
-  final Map<int, GlobalKey> endKeys = {};
-
   bool _isComplete = false;
 
   @override
@@ -44,11 +41,7 @@ class _ShapeLineMatchingScreenState extends ConsumerState<ShapeLineMatchingScree
 
   void _resetLevel() {
     targetOrder = List.from(shapes)..shuffle();
-    for (int i = 0; i < shapes.length; i++) {
-      startKeys[i] = GlobalKey();
-      endKeys[i] = GlobalKey();
-      matched[i] = false;
-    }
+    matched = {for (int i = 0; i < shapes.length; i++) i: false};
     connections = [];
     _isComplete = false;
   }
@@ -68,50 +61,55 @@ class _ShapeLineMatchingScreenState extends ConsumerState<ShapeLineMatchingScree
     });
   }
 
-  void _handleDragStart(int index, Offset pos) {
-    if (matched[index]!) return;
-    setState(() {
-      activeDragIndex = index;
-      currentDragStart = pos;
-      currentDragEnd = pos;
-    });
-    HapticService.light();
+  Offset _getItemCenter(int index, bool isLeft, Size areaSize) {
+    double x = isLeft ? 100 : areaSize.width - 100;
+    double segmentHeight = areaSize.height / shapes.length;
+    double y = (index + 0.5) * segmentHeight;
+    return Offset(x, y);
   }
 
-  void _handleDragUpdate(Offset pos) {
+  void _handleDragStart(Offset localPos, Size areaSize) {
+    for (int i = 0; i < shapes.length; i++) {
+      if (matched[i]!) continue;
+      final center = _getItemCenter(i, true, areaSize);
+      if ((localPos - center).distance < 50) {
+        setState(() {
+          activeDragIndex = i;
+          currentDragStart = center;
+          currentDragEnd = localPos;
+        });
+        HapticService.light();
+        return;
+      }
+    }
+  }
+
+  void _handleDragUpdate(Offset localPos) {
     if (activeDragIndex == null) return;
-    setState(() => currentDragEnd = pos);
+    setState(() => currentDragEnd = localPos);
   }
 
-  void _handleDragEnd(Offset pos) {
+  void _handleDragEnd(Offset localPos, Size areaSize) {
     if (activeDragIndex == null) return;
 
     int? hitIndex;
-    for (var entry in endKeys.entries) {
-      final RenderBox? box = entry.value.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final boxPos = box.localToGlobal(Offset.zero);
-        final size = box.size;
-        if (Rect.fromLTWH(boxPos.dx, boxPos.dy, size.width, size.height).contains(pos)) {
-          // Check if it's the correct shape (we use targetOrder for mapping)
-          if (targetOrder[entry.key].icon == shapes[activeDragIndex!].icon) {
-            hitIndex = entry.key;
-          }
-          break;
+    for (int i = 0; i < targetOrder.length; i++) {
+      final center = _getItemCenter(i, false, areaSize);
+      if ((localPos - center).distance < 50) {
+        if (targetOrder[i].icon == shapes[activeDragIndex!].icon) {
+          hitIndex = i;
         }
+        break;
       }
     }
 
     if (hitIndex != null) {
-      final RenderBox startBox = startKeys[activeDragIndex!]!.currentContext!.findRenderObject() as RenderBox;
-      final RenderBox endBox = endKeys[hitIndex]!.currentContext!.findRenderObject() as RenderBox;
-      
       setState(() {
         matched[activeDragIndex!] = true;
         connections.add(_Connection(
           color: shapes[activeDragIndex!].color,
-          start: startBox.localToGlobal(Offset(startBox.size.width / 2, startBox.size.height / 2)),
-          end: endBox.localToGlobal(Offset(endBox.size.width / 2, endBox.size.height / 2)),
+          start: currentDragStart!,
+          end: _getItemCenter(hitIndex!, false, areaSize),
         ));
       });
       HapticService.success();
@@ -129,92 +127,154 @@ class _ShapeLineMatchingScreenState extends ConsumerState<ShapeLineMatchingScree
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: const Text('Cocokkan Bentuk', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-          ),
-          body: Stack(
+    double progress = matched.values.where((v) => v).length / shapes.length;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(progress),
+            const SizedBox(height: 10),
+            _buildInstruction(),
+            const SizedBox(height: 10),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final areaSize = Size(constraints.maxWidth, constraints.maxHeight);
+                  return GestureDetector(
+                    onPanStart: (d) => _handleDragStart(d.localPosition, areaSize),
+                    onPanUpdate: (d) => _handleDragUpdate(d.localPosition),
+                    onPanEnd: (d) => _handleDragEnd(d.localPosition, areaSize),
+                    child: Stack(
+                      children: [
+                        Container(color: Colors.transparent),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _LinePainter(
+                              connections: connections,
+                              activeStart: currentDragStart,
+                              activeEnd: currentDragEnd,
+                              activeColor: activeDragIndex != null ? shapes[activeDragIndex!].color : null,
+                            ),
+                          ),
+                        ),
+
+                        // Left Column
+                        ...List.generate(shapes.length, (i) {
+                          final center = _getItemCenter(i, true, areaSize);
+                          return Positioned(
+                            left: center.dx - 85,
+                            top: center.dy - 32,
+                            child: _buildVisualItem(shapes[i], true, matched[i]!),
+                          );
+                        }),
+
+                        // Right Column
+                        ...List.generate(targetOrder.length, (i) {
+                          final center = _getItemCenter(i, false, areaSize);
+                          final bool isMatched = connections.any((c) => c.color == targetOrder[i].color);
+                          return Positioned(
+                            left: center.dx - 12,
+                            top: center.dy - 32,
+                            child: _buildVisualItem(targetOrder[i], false, isMatched),
+                          );
+                        }),
+
+                        if (_isComplete) const IgnorePointer(child: _ConfettiOverlay()),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(double progress) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Positioned(
-                top: 0, left: 0, right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                    child: const Text('Hubungkan dua bentuk yang sama!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                  ),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const Expanded(
+                child: Text(
+                  'Cocokkan Bentuk',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                 ),
               ),
-
-              // Lines Layer
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _LinePainter(
-                    connections: connections,
-                    activeStart: currentDragStart,
-                    activeEnd: currentDragEnd,
-                    activeColor: activeDragIndex != null ? shapes[activeDragIndex!].color : null,
-                    context: context,
-                  ),
-                ),
-              ),
-
-              // Objects Layer
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Left Column
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(shapes.length, (i) => _buildItem(i, true)),
-                    ),
-                    // Right Column
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(targetOrder.length, (i) => _buildItem(i, false)),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 40),
             ],
           ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: Colors.blueGrey.withOpacity(0.1),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstruction() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+        child: const Text('Hubungkan dua bentuk yang sama!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue)),
+      ),
+    );
+  }
+
+  Widget _buildVisualItem(_ShapeData data, bool isLeft, bool isMatched) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!isLeft) _buildVisualAnchor(data.color),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            color: isMatched ? data.color.withOpacity(0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isMatched ? data.color : Colors.grey.shade200, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: isMatched ? data.color.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+                blurRadius: isMatched ? 15 : 5,
+              )
+            ],
+          ),
+          child: Icon(data.icon, color: data.color, size: 32),
         ),
-        if (_isComplete) const IgnorePointer(child: _ConfettiOverlay()),
+        if (isLeft) _buildVisualAnchor(data.color),
       ],
     );
   }
 
-  Widget _buildItem(int index, bool isLeft) {
-    final data = isLeft ? shapes[index] : targetOrder[index];
-    final key = isLeft ? startKeys[index] : endKeys[index];
-    final bool isMatched = isLeft ? matched[index]! : connections.any((c) => c.color == data.color);
-
-    return GestureDetector(
-      onPanStart: isLeft ? (d) => _handleDragStart(index, d.globalPosition) : null,
-      onPanUpdate: isLeft ? (d) => _handleDragUpdate(d.globalPosition) : null,
-      onPanEnd: isLeft ? (d) => _handleDragEnd(d.globalPosition) : null,
-      child: Column(
-        children: [
-          Container(
-            key: key,
-            width: 65, height: 65,
-            decoration: BoxDecoration(
-              color: isMatched ? data.color.withOpacity(0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isMatched ? data.color : Colors.grey.shade200, width: 2),
-            ),
-            child: Icon(data.icon, color: data.color, size: 35),
-          ),
-          if (isMatched && isLeft) 
-            const Icon(Icons.check_circle, color: Colors.green, size: 16),
-        ],
+  Widget _buildVisualAnchor(Color color) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      width: 10, height: 10,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
       ),
     );
   }
@@ -233,28 +293,27 @@ class _Connection {
 class _LinePainter extends CustomPainter {
   final List<_Connection> connections;
   final Offset? activeStart; final Offset? activeEnd; final Color? activeColor;
-  final BuildContext context;
 
-  _LinePainter({required this.connections, this.activeStart, this.activeEnd, this.activeColor, required this.context});
+  _LinePainter({required this.connections, this.activeStart, this.activeEnd, this.activeColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..strokeWidth = 4..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final canvasOffset = renderBox.localToGlobal(Offset.zero);
 
     for (var conn in connections) {
-      paint.color = conn.color.withOpacity(0.6);
-      canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
-      canvas.drawCircle(conn.start - canvasOffset, 5, paint..style = PaintingStyle.fill);
-      canvas.drawCircle(conn.end - canvasOffset, 5, paint..style = PaintingStyle.fill);
-      paint.style = PaintingStyle.stroke;
+      paint.color = conn.color;
+      canvas.drawLine(conn.start, conn.end, paint);
+      
+      final dotPaint = Paint()..color = conn.color..style = PaintingStyle.fill;
+      canvas.drawCircle(conn.start, 4, dotPaint);
+      canvas.drawCircle(conn.end, 4, dotPaint);
     }
 
     if (activeStart != null && activeEnd != null && activeColor != null) {
-      paint.color = activeColor!.withOpacity(0.3);
-      paint.strokeWidth = 6;
-      canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
+      paint.color = activeColor!.withOpacity(0.4);
+      paint.strokeWidth = 3;
+      canvas.drawLine(activeStart!, activeEnd!, paint);
+      canvas.drawCircle(activeStart!, 5, Paint()..color = activeColor!..style = PaintingStyle.fill);
     }
   }
 
