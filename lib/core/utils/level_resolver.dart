@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/features/spatial/line_tracing_screen.dart';
 import 'package:apkuas/features/spatial/advanced_line_tracing_screen.dart';
 import 'package:apkuas/features/matching/matching_balloon_screen.dart';
@@ -38,20 +39,34 @@ class LevelResolver {
         return const AdvancedBalloonColoringScreen(levelId: 11);
       default:
         // Fallback or placeholder for future levels
-        return Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.construction_rounded, size: 100, color: Colors.orange),
-                const SizedBox(height: 20),
-                Text('Level $levelId Sedang Dibangun!', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop, 
-                  child: const Text('KEMBALI')
-                ),
-              ],
+        return Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: CilikTheme.backgroundLight,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.construction_rounded, size: 120, color: CilikTheme.tealTua),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Level $levelId',
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(color: CilikTheme.tealTua),
+                  ),
+                  Text(
+                    'Sedang Dibangun!',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.blueGrey),
+                  ),
+                  const SizedBox(height: 40),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 48),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context), 
+                      style: ElevatedButton.styleFrom(backgroundColor: CilikTheme.woodBrown),
+                      child: const Text('KEMBALI'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -98,26 +113,35 @@ class _LevelTransitionScreenState extends State<LevelTransitionScreen> with Sing
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF5C78C1),
+      backgroundColor: CilikTheme.tealTua,
       body: Center(
         child: ScaleTransition(
           scale: _scaleAnimation,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.stars_rounded, size: 120, color: Colors.amber),
-              const SizedBox(height: 24),
+              const Icon(Icons.stars_rounded, size: 150, color: Colors.amberAccent),
+              const SizedBox(height: 32),
               const Text(
                 'LEVEL UP!',
-                style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 4),
+                style: TextStyle(
+                  fontSize: 56,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 6,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Text(
                 'Tantangan Berikutnya: Level ${widget.nextLevelId}',
-                style: const TextStyle(fontSize: 20, color: Colors.white70, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 24,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 40),
-              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 60),
+              const CircularProgressIndicator(color: Colors.white, strokeWidth: 6),
             ],
           ),
         ),

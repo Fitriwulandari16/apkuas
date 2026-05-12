@@ -5,23 +5,64 @@ import 'package:apkuas/features/spatial/line_tracing_screen.dart';
 import 'package:apkuas/features/spatial/advanced_line_tracing_screen.dart';
 import 'package:apkuas/features/spatial/object_relation_screen.dart';
 import 'package:apkuas/features/spatial/shape_matching_screen.dart';
+import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 
 class LevelSelectionScreen extends StatelessWidget {
   const LevelSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pilih Petualangan'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
+    return ResponsiveWrapper(
+      child: Scaffold(
+        body: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: CilikTheme.tealTua),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'CilikCode',
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              color: CilikTheme.tealTua,
+                              letterSpacing: 1.2,
+                            ),
+                      ),
+                    ),
+                  ),
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFFE0F2F1),
+                    child: Icon(Icons.face_retouching_natural_rounded, color: CilikTheme.tealTua),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Pilih Petualangan',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: CilikTheme.tealTua),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
           _StageCard(
             title: 'Tahap 1: Detektif Visual',
             description: 'Ayo cari benda yang sama!',
-            color: CilikTheme.primaryPastel,
+            color: CilikTheme.mintGreen,
             icon: Icons.search_rounded,
             levels: [
               _LevelItem(
@@ -44,7 +85,7 @@ class LevelSelectionScreen extends StatelessWidget {
           _StageCard(
             title: 'Tahap 2: Arsitek Cilik',
             description: 'Belajar membangun dan menggambar.',
-            color: CilikTheme.secondaryPastel,
+            color: const Color(0xFFFFCC80), // Pastel orange
             icon: Icons.architecture_rounded,
             isLocked: false,
             levels: [
@@ -72,6 +113,10 @@ class LevelSelectionScreen extends StatelessWidget {
             ],
           ),
         ],
+      ),
+            ),
+          ],
+        ),
       ),
     );
   }

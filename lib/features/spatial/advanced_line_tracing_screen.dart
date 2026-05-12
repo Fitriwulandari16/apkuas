@@ -97,7 +97,7 @@ class _AdvancedLineTracingScreenState extends ConsumerState<AdvancedLineTracingS
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: CilikTheme.backgroundPastel,
+          backgroundColor: CilikTheme.backgroundLight,
           appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Garis Majemuk', style: TextStyle(fontWeight: FontWeight.bold))),
           body: Column(
             children: [

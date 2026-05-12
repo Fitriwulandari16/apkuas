@@ -4,6 +4,7 @@ import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 
 class LineTracingScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -108,12 +109,12 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
   Widget build(BuildContext context) {
     double progress = (currentLevelIndex + 1) / levels.length;
 
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: CilikTheme.backgroundPastel,
-          body: SafeArea(
-            child: Column(
+    return ResponsiveWrapper(
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: CilikTheme.backgroundLight,
+            body: Column(
               children: [
                 // Custom Header with Progress Bar
                 Padding(
@@ -126,24 +127,30 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
                             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                             onPressed: () => Navigator.pop(context),
                           ),
-                          const Expanded(
-                            child: Text(
-                              'Tiru Garis Dasar',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown),
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: const Text(
+                                'Tiru Garis Dasar',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 40),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 10,
-                          backgroundColor: Colors.white,
-                          valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.8,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 10,
+                            backgroundColor: Colors.white,
+                            valueColor: AlwaysStoppedAnimation<Color>(currentLevel.color),
+                          ),
                         ),
                       ),
                     ],
@@ -190,9 +197,9 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
               ],
             ),
           ),
-        ),
-        if (_showCelebration) const IgnorePointer(child: _ConfettiOverlay()),
-      ],
+          if (_showCelebration) const IgnorePointer(child: _ConfettiOverlay()),
+        ],
+      ),
     );
   }
 }

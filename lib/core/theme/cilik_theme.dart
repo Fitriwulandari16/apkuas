@@ -1,66 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart';
 
 class CilikTheme {
-  // Pastel Eye-Comfort Palette
-  static const Color primaryPastel = Color(0xFFB5EAD7); // Mint
-  static const Color secondaryPastel = Color(0xFFFF9AA2); // Pink
-  static const Color accentPastel = Color(0xFFFFDAC1); // Peach
-  static const Color backgroundPastel = Color(0xFFF7F9FC); // Off-white/blue
-  static const Color surfacePastel = Colors.white;
-  static const Color textDark = Color(0xFF2D3436);
-  static const Color errorPastel = Color(0xFFFF6B6B);
-  static const Color successPastel = Color(0xFF55E6C1);
+  // Modern Kid-Friendly Palette
+  static const Color tealTua = Color(0xFF00695C);
+  static const Color woodBrown = Color(0xFF6D4C41);
+  static const Color mintGreen = Color(0xFF80CBC4);
+  static const Color cleanWhite = Colors.white;
+  static const Color textDark = Color(0xFF212121);
+  static const Color backgroundLight = Color(0xFFF5F5F5);
 
   static ThemeData get lightTheme {
+    bool isDesktop = kIsWeb || 
+        defaultTargetPlatform == TargetPlatform.windows || 
+        defaultTargetPlatform == TargetPlatform.linux || 
+        defaultTargetPlatform == TargetPlatform.macOS;
+
+    double scale = isDesktop ? 1.2 : 1.0;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryPastel,
-        primary: primaryPastel,
-        secondary: secondaryPastel,
-        tertiary: accentPastel,
-        surface: surfacePastel,
-        background: backgroundPastel,
-        error: errorPastel,
-        onPrimary: textDark,
+        seedColor: tealTua,
+        primary: tealTua,
+        secondary: woodBrown,
+        tertiary: mintGreen,
+        surface: cleanWhite,
+        background: backgroundLight,
+        onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textDark,
-        onBackground: textDark,
       ),
-      textTheme: GoogleFonts.outfitTextTheme().copyWith(
-        displayLarge: GoogleFonts.outfit(
-          fontSize: 32,
+      textTheme: GoogleFonts.fredokaTextTheme().copyWith(
+        displayLarge: GoogleFonts.fredoka(
+          fontSize: 32 * scale,
           fontWeight: FontWeight.bold,
           color: textDark,
         ),
-        headlineMedium: GoogleFonts.outfit(
-          fontSize: 24,
+        displayMedium: GoogleFonts.fredoka(
+          fontSize: 28 * scale,
+          fontWeight: FontWeight.bold,
+          color: textDark,
+        ),
+        headlineMedium: GoogleFonts.fredoka(
+          fontSize: 24 * scale,
           fontWeight: FontWeight.w600,
           color: textDark,
         ),
-        bodyLarge: GoogleFonts.outfit(
-          fontSize: 18,
+        bodyLarge: GoogleFonts.fredoka(
+          fontSize: 18 * scale,
+          fontWeight: FontWeight.w500,
+          color: textDark,
+        ),
+        bodyMedium: GoogleFonts.fredoka(
+          fontSize: 16 * scale,
           color: textDark,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryPastel,
-          foregroundColor: textDark,
-          minimumSize: const Size(48, 48), // Child-friendly target size
+          backgroundColor: tealTua,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 64),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(35),
           ),
-          elevation: 2,
+          elevation: 8,
+          shadowColor: tealTua.withOpacity(0.4),
+          textStyle: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       cardTheme: CardThemeData(
-        color: surfacePastel,
-        elevation: 0,
+        color: cleanWhite,
+        elevation: 10,
+        shadowColor: Colors.black12,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Colors.grey.shade200, width: 1),
+          borderRadius: BorderRadius.circular(40),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: cleanWhite,
+        elevation: 20,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32),
+        ),
+        titleTextStyle: GoogleFonts.fredoka(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: tealTua,
+        ),
+        contentTextStyle: GoogleFonts.fredoka(
+          fontSize: 18,
+          color: textDark,
         ),
       ),
     );

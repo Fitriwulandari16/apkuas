@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 
 class MatchingBalloonScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -81,64 +82,116 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
   void _handleDragUpdate(Offset globalPos) { if (activeDragColor == null) return; setState(() => currentDragEnd = globalPos); }
 
   void _handleDragEnd(Offset globalPos) {
-    if (activeDragColor == null) return;
-    Color? hitColor;
-    for (var entry in endKeys.entries) {
-      final RenderBox? box = entry.value.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final position = box.localToGlobal(Offset.zero); final size = box.size;
-        if (Rect.fromLTWH(position.dx, position.dy, size.width, size.height).contains(globalPos)) { hitColor = entry.key; break; }
+    if (activeDragColor == null || !mounted) return;
+    
+    // Safety check for all render boxes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      
+      Color? hitColor;
+      for (var entry in endKeys.entries) {
+        final RenderObject? renderObject = entry.value.currentContext?.findRenderObject();
+        if (renderObject is RenderBox && renderObject.hasSize) {
+          final position = renderObject.localToGlobal(Offset.zero);
+          final size = renderObject.size;
+          if (Rect.fromLTWH(position.dx, position.dy, size.width, size.height).contains(globalPos)) {
+            hitColor = entry.key;
+            break;
+          }
+        }
       }
-    }
-    if (hitColor != null && hitColor == activeDragColor) {
-      final RenderBox startBox = startKeys[activeDragColor!]!.currentContext!.findRenderObject() as RenderBox;
-      final RenderBox endBox = endKeys[hitColor]!.currentContext!.findRenderObject() as RenderBox;
+
+      if (hitColor != null && hitColor == activeDragColor) {
+        final RenderObject? startRO = startKeys[activeDragColor!]?.currentContext?.findRenderObject();
+        final RenderObject? endRO = endKeys[hitColor]?.currentContext?.findRenderObject();
+        
+        if (startRO is RenderBox && startRO.hasSize && endRO is RenderBox && endRO.hasSize) {
+          setState(() {
+            matchedColors[activeDragColor!] = true;
+            connections.add(_Connection(
+              color: activeDragColor!,
+              start: startRO.localToGlobal(Offset(startRO.size.width / 2, startRO.size.height / 2)),
+              end: endRO.localToGlobal(Offset(endRO.size.width / 2, endRO.size.height / 2)),
+            ));
+          });
+          HapticService.success();
+          if (matchedColors.values.every((v) => v == true)) _onLevelComplete();
+        }
+      }
       setState(() {
-        matchedColors[activeDragColor!] = true;
-        connections.add(_Connection(color: activeDragColor!, start: startBox.localToGlobal(Offset(startBox.size.width/2, startBox.size.height/2)), end: endBox.localToGlobal(Offset(endBox.size.width/2, endBox.size.height/2))));
+        activeDragColor = null;
+        currentDragStart = null;
+        currentDragEnd = null;
       });
-      HapticService.success();
-      if (matchedColors.values.every((v) => v == true)) _onLevelComplete();
-    }
-    setState(() { activeDragColor = null; currentDragStart = null; currentDragEnd = null; });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Cocokkan Balon', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)), centerTitle: true),
-      body: Stack(
-        children: [
-          Positioned(top: 10, left: 24, child: Row(children: [const Icon(Icons.star, color: Colors.orangeAccent, size: 20), const SizedBox(width: 8), Text('Hubungkan warna yang sama', style: TextStyle(color: Colors.grey.shade700, fontSize: 16, fontWeight: FontWeight.w600))])),
-          Positioned.fill(child: LayoutBuilder(builder: (context, constraints) => CustomPaint(painter: _ConnectionPainter(activeStart: currentDragStart, activeEnd: currentDragEnd, activeColor: activeDragColor, connections: connections, context: context)))),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const SizedBox(height: 60),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: startGroup.map((color) => _buildItem(color, true)).toList()),
-              const Spacer(),
-              Padding(padding: const EdgeInsets.only(bottom: 80), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: endGroup.map((color) => _buildItem(color, false)).toList())),
-            ],
+    return ResponsiveWrapper(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('Cocokkan Balon', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
           ),
-          if (isLevelComplete) const IgnorePointer(child: _ConfettiOverlay()),
-        ],
+          centerTitle: true,
+        ),
+        body: Stack(
+          children: [
+            Positioned(top: 10, left: 24, child: Row(children: [const Icon(Icons.star, color: Colors.orangeAccent, size: 20), const SizedBox(width: 8), Text('Hubungkan warna yang sama', style: TextStyle(color: Colors.grey.shade700, fontSize: 16, fontWeight: FontWeight.w600))])),
+            Positioned.fill(child: LayoutBuilder(builder: (context, constraints) => CustomPaint(painter: _ConnectionPainter(activeStart: currentDragStart, activeEnd: currentDragEnd, activeColor: activeDragColor, connections: connections, context: context)))),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(height: 60),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: startGroup.map((color) => _buildItem(color, true)).toList()),
+                const Spacer(),
+                Padding(padding: const EdgeInsets.only(bottom: 80), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: endGroup.map((color) => _buildItem(color, false)).toList())),
+              ],
+            ),
+            if (isLevelComplete) const IgnorePointer(child: _ConfettiOverlay()),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildItem(Color color, bool isStart) {
     final key = isStart ? startKeys[color]! : endKeys[color]!;
-    return GestureDetector(
-      key: key,
-      onPanStart: isStart ? (details) => _handleDragStart(color, details.globalPosition) : null,
-      onPanUpdate: isStart ? (details) => _handleDragUpdate(details.globalPosition) : null,
-      onPanEnd: isStart ? (details) => _handleDragEnd(details.globalPosition) : null,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        if (!isStart) Container(width: 2, height: 15, color: Colors.black12),
-        Container(width: 60, height: 75, decoration: BoxDecoration(color: color, borderRadius: const BorderRadius.all(Radius.elliptical(30, 37)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 4))])),
-        if (isStart) Container(width: 2, height: 15, color: Colors.black12),
-      ]),
+    return Flexible(
+      child: GestureDetector(
+        key: key,
+        onPanStart: isStart ? (details) => _handleDragStart(color, details.globalPosition) : null,
+        onPanUpdate: isStart ? (details) => _handleDragUpdate(details.globalPosition) : null,
+        onPanEnd: isStart ? (details) => _handleDragEnd(details.globalPosition) : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isStart) Container(width: 2, height: 15, color: Colors.black12),
+            AspectRatio(
+              aspectRatio: 60 / 75,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.all(Radius.elliptical(30, 37)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (isStart) Container(width: 2, height: 15, color: Colors.black12),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -147,11 +200,26 @@ class _Connection { final Color color; final Offset start; final Offset end; _Co
 class _ConnectionPainter extends CustomPainter {
   final Offset? activeStart; final Offset? activeEnd; final Color? activeColor; final List<_Connection> connections; final BuildContext context;
   _ConnectionPainter({this.activeStart, this.activeEnd, this.activeColor, required this.connections, required this.context});
-  @override void paint(Canvas canvas, Size size) {
-    final paint = Paint()..strokeWidth = 3..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
-    final RenderBox renderBox = context.findRenderObject() as RenderBox; final canvasOffset = renderBox.localToGlobal(Offset.zero);
-    for (var conn in connections) { paint.color = Colors.black54; canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint); }
-    if (activeStart != null && activeEnd != null && activeColor != null) { paint.color = activeColor!.withOpacity(0.5); paint.strokeWidth = 5; canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint); }
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final RenderObject? renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return;
+
+    final canvasOffset = renderObject.localToGlobal(Offset.zero);
+    for (var conn in connections) {
+      paint.color = Colors.black54;
+      canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
+    }
+    if (activeStart != null && activeEnd != null && activeColor != null) {
+      paint.color = activeColor!.withOpacity(0.5);
+      paint.strokeWidth = 5;
+      canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
+    }
   }
   @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

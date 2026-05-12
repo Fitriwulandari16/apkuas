@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:apkuas/core/theme/cilik_theme.dart';
+import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
 
 class AdventureMapScreen extends ConsumerWidget {
   const AdventureMapScreen({super.key});
 
-  // Trophy/Vase silhouette structure (top to bottom)
-  static const List<int> rowCounts = [3, 6, 7, 8, 8, 9, 8, 8, 7, 6, 8, 9, 11];
+  // Trophy/Vase silhouette structure (top to bottom) matching reference image
+  static const List<int> rowCounts = [3, 6, 7, 8, 8, 9, 8, 7, 6, 6, 8, 9, 11];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,110 +18,130 @@ class AdventureMapScreen extends ConsumerWidget {
     // Calculate total levels and map IDs to rows
     List<List<int>> levelRows = [];
     int totalLevels = rowCounts.reduce((a, b) => a + b);
-    int currentId = totalLevels; // We'll build from top to bottom (98 down to 1)
+    int currentId = totalLevels;
 
     for (int count in rowCounts) {
       List<int> row = [];
       for (int i = 0; i < count; i++) {
         row.add(currentId--);
       }
-      // Keep levels in ascending order within the row for logic, but we'll reverse visual display
       levelRows.add(row.reversed.toList());
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E2F5A), // Original deep blue
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2E4482),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text('Peta Petualangan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+    const Color deepBlueBg = Color(0xFF3B4B70);
+    const Color headerFooterBlue = Color(0xFF5C7BC1);
+
+    return ResponsiveWrapper(
+      backgroundColor: deepBlueBg,
+      child: Scaffold(
+        backgroundColor: deepBlueBg,
+        appBar: AppBar(
+          backgroundColor: headerFooterBlue,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Adventure',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+          ),
+          centerTitle: true,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
-            onPressed: () => _showResetDialog(context, ref),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Scrollable Content
-          SingleChildScrollView(
-            child: Column(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            // Dynamically calculate tile size based on available width
+            // 11 is the maximum number of tiles in a row
+            double horizontalPadding = 24;
+            double tileSize = (constraints.maxWidth - horizontalPadding) / 11;
+            // Cap tile size for very large screens (Desktop/Web)
+            if (tileSize > 45) tileSize = 45;
+
+            return Column(
               children: [
-                const SizedBox(height: 30),
-                // Trophy Header
-                const Icon(Icons.emoji_events_rounded, size: 100, color: Color(0xFF2D3E50)),
-                const SizedBox(height: 12),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
-                    'Ikuti Petualangan dan menangkan pialanya!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white60, fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                // Custom Level Map (Vase Shape)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: levelRows.map((row) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: row.map((id) {
-                            bool isUnlocked = id <= unlockedLevel;
-                            bool isCurrent = id == unlockedLevel;
-                            return _LevelTile(
-                              id: id,
-                              isUnlocked: isUnlocked,
-                              isCurrent: isCurrent,
-                            );
-                          }).toList(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        // Trophy Header
+                        const Icon(Icons.emoji_events_rounded, size: 80, color: Color(0xFF26334D)),
+                        const SizedBox(height: 12),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            'Take part in the Adventure\nand win the trophy.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      );
-                    }).toList(),
+                        const SizedBox(height: 30),
+
+                        // Custom Level Map
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding / 2),
+                          child: Column(
+                            children: levelRows.map((row) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 0.5),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: row.map((id) {
+                                    bool isUnlocked = id <= unlockedLevel;
+                                    bool isCurrent = id == unlockedLevel;
+                                    return _LevelTile(
+                                      id: id,
+                                      tileSize: tileSize,
+                                      isUnlocked: isUnlocked,
+                                      isCurrent: isCurrent,
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 150), // Bottom padding for FAB
+                // Bottom Button Bar
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  color: headerFooterBlue,
+                  child: SafeArea(
+                    top: false,
+                    child: InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(unlockedLevel))),
+                      child: Container(
+                        width: double.infinity,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Level $unlockedLevel',
+                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
-            ),
-          ),
-
-          // Floating Play Button
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _FloatingPlayButton(unlockedLevel: unlockedLevel),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResetDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Reset Progres?'),
-        content: const Text('Semua level akan dikunci kembali.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          TextButton(
-            onPressed: () {
-              ref.read(progressProvider.notifier).resetProgress();
-              Navigator.pop(context);
-            },
-            child: const Text('Reset', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -127,105 +149,55 @@ class AdventureMapScreen extends ConsumerWidget {
 
 class _LevelTile extends StatelessWidget {
   final int id;
+  final double tileSize;
   final bool isUnlocked;
   final bool isCurrent;
 
-  const _LevelTile({required this.id, required this.isUnlocked, required this.isCurrent});
+  const _LevelTile({
+    required this.id,
+    required this.tileSize,
+    required this.isUnlocked,
+    required this.isCurrent,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isUnlocked
-          ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(id)))
-          : null,
+    const Color tileColor = Color(0xFF26334D);
+    const Color highlightColor = Color(0xFFFFD54F);
+
+    return Container(
+      width: tileSize - 1, // Subtract small margin
+      height: tileSize - 1,
+      margin: const EdgeInsets.all(0.5),
+      decoration: BoxDecoration(
+        color: isCurrent ? highlightColor : tileColor,
+        border: Border.all(color: Colors.black26, width: 0.5),
+      ),
       child: Stack(
-        alignment: Alignment.topCenter,
-        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          Container(
-            margin: const EdgeInsets.all(3),
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: isCurrent 
-                  ? const Color(0xFF5C78C1) 
-                  : (isUnlocked ? const Color(0xFF4A90E2) : const Color(0xFF162548)),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isCurrent ? Colors.white : (isUnlocked ? Colors.white24 : Colors.transparent),
-                width: isCurrent ? 2 : 1,
-              ),
-              boxShadow: isUnlocked ? [
-                BoxShadow(
-                  color: isCurrent ? Colors.white.withOpacity(0.3) : Colors.black26,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                )
-              ] : null,
-            ),
-            child: Center(
-              child: Text(
-                '$id',
-                style: TextStyle(
-                  color: isUnlocked ? Colors.white : Colors.white24,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.all(2.0),
+                child: Text(
+                  '$id',
+                  style: TextStyle(
+                    color: isCurrent ? Colors.black87 : (isUnlocked ? Colors.white60 : Colors.white24),
+                    fontSize: tileSize * 0.4,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
           ),
           if (isCurrent)
-            const Positioned(
-              top: -14,
-              child: Icon(Icons.flag_rounded, color: Colors.yellow, size: 20),
+            Positioned(
+              top: -1,
+              child: Icon(Icons.bookmark, color: Colors.orange.withOpacity(0.8), size: tileSize * 0.4),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _FloatingPlayButton extends StatelessWidget {
-  final int unlockedLevel;
-  const _FloatingPlayButton({required this.unlockedLevel});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 25.0),
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.85,
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF81C784), Color(0xFF43A047)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(unlockedLevel))),
-              child: Center(
-                child: Text(
-                  'MAINKAN LEVEL $unlockedLevel',
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.2),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
