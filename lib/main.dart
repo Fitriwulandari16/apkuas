@@ -6,6 +6,7 @@ import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/features/level_selection_screen.dart';
 import 'package:apkuas/features/adventure_map_screen.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
+import 'package:apkuas/core/providers/profile_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,14 +41,14 @@ class CilikCodeApp extends StatelessWidget {
   }
 }
 
-class MainMenuScreen extends StatefulWidget {
+class MainMenuScreen extends ConsumerStatefulWidget {
   const MainMenuScreen({super.key});
 
   @override
-  State<MainMenuScreen> createState() => _MainMenuScreenState();
+  ConsumerState<MainMenuScreen> createState() => _MainMenuScreenState();
 }
 
-class _MainMenuScreenState extends State<MainMenuScreen> {
+class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
   int _selectedIndex = 0;
 
   @override
@@ -88,9 +89,23 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                 letterSpacing: 1.2,
                               ),
                         ),
-                        const CircleAvatar(
-                          backgroundColor: Color(0xFFE0F2F1),
-                          child: Icon(Icons.face_retouching_natural_rounded, color: CilikTheme.tealTua),
+                        GestureDetector(
+                          onTap: () => _showProfileDialog(context),
+                          child: TweenAnimationBuilder<double>(
+                            duration: const Duration(milliseconds: 200),
+                            tween: Tween(begin: 1.0, end: 1.0),
+                            builder: (context, scale, child) => Transform.scale(
+                              scale: scale,
+                              child: CircleAvatar(
+                                radius: 24,
+                                backgroundColor: const Color(0xFFE0F2F1),
+                                child: Text(
+                                  ref.watch(profileProvider).avatarIcon,
+                                  style: const TextStyle(fontSize: 28),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -132,15 +147,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         const SizedBox(height: 30),
 
                         // Title
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'Belajar Coding',
-                            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                                  fontSize: MediaQuery.of(context).size.width * 0.09,
-                                  color: Colors.black87,
-                                ),
-                          ),
+                        Text(
+                          'Belajar Coding',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                                fontSize: MediaQuery.of(context).size.width * 0.09,
+                                color: Colors.black87,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Transform.rotate(
@@ -151,15 +164,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               color: CilikTheme.tealTua,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: const Text(
-                                'Jadi Seru!',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            child: const Text(
+                              'Jadi Seru!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
@@ -275,6 +285,97 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       ),
     );
   }
+
+  void _showProfileDialog(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Profile',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Text(
+                  ref.read(profileProvider).avatarIcon,
+                  style: const TextStyle(fontSize: 80),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  ref.read(profileProvider).name,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.stars_rounded, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${ref.read(profileProvider).totalStars} Bintang',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Text('Pilih Avatar Kamu:', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: ['🦁', '🦊', '🐶', '🐰', '🐼', '🐯'].map((emoji) {
+                    bool isSelected = ref.watch(profileProvider).avatarIcon == emoji;
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(profileProvider.notifier).updateAvatar(emoji);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? CilikTheme.mintGreen.withOpacity(0.3) : Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? CilikTheme.tealTua : Colors.transparent,
+                            width: 3,
+                          ),
+                        ),
+                        child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CilikTheme.tealTua,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  ),
+                  child: const Text('TUTUP', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _StylizedButton extends StatelessWidget {
@@ -332,16 +433,15 @@ class _StylizedButton extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FittedBox(
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              child: Text(
+                title,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
               ),
             ),
           ],

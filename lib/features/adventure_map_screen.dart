@@ -89,11 +89,13 @@ class AdventureMapScreen extends ConsumerWidget {
                                   children: row.map((id) {
                                     bool isUnlocked = id <= unlockedLevel;
                                     bool isCurrent = id == unlockedLevel;
+                                    bool isCompleted = id < unlockedLevel;
                                     return _LevelTile(
                                       id: id,
                                       tileSize: tileSize,
                                       isUnlocked: isUnlocked,
                                       isCurrent: isCurrent,
+                                      isCompleted: isCompleted,
                                     );
                                   }).toList(),
                                 ),
@@ -152,52 +154,66 @@ class _LevelTile extends StatelessWidget {
   final double tileSize;
   final bool isUnlocked;
   final bool isCurrent;
+  final bool isCompleted;
 
   const _LevelTile({
     required this.id,
     required this.tileSize,
     required this.isUnlocked,
     required this.isCurrent,
+    required this.isCompleted,
   });
 
   @override
   Widget build(BuildContext context) {
-    const Color tileColor = Color(0xFF26334D);
+    const Color lockedColor = Color(0xFF2D3E50);
+    const Color unlockedColor = CilikTheme.tealTua;
     const Color highlightColor = Color(0xFFFFD54F);
 
-    return Container(
-      width: tileSize - 1, // Subtract small margin
-      height: tileSize - 1,
-      margin: const EdgeInsets.all(0.5),
-      decoration: BoxDecoration(
-        color: isCurrent ? highlightColor : tileColor,
-        border: Border.all(color: Colors.black26, width: 0.5),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Padding(
-                padding: const EdgeInsets.all(2.0),
-                child: Text(
-                  '$id',
-                  style: TextStyle(
-                    color: isCurrent ? Colors.black87 : (isUnlocked ? Colors.white60 : Colors.white24),
-                    fontSize: tileSize * 0.4,
-                    fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: isUnlocked 
+          ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(id)))
+          : null,
+      child: Container(
+        width: tileSize - 1,
+        height: tileSize - 1,
+        margin: const EdgeInsets.all(0.5),
+        decoration: BoxDecoration(
+          color: isCurrent ? highlightColor : (isUnlocked ? unlockedColor : lockedColor),
+          border: Border.all(color: Colors.black26, width: 0.5),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: Text(
+                    '$id',
+                    style: TextStyle(
+                      color: isCurrent ? Colors.black87 : (isUnlocked ? Colors.white : Colors.white24),
+                      fontSize: tileSize * 0.4,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (isCurrent)
-            Positioned(
-              top: -1,
-              child: Icon(Icons.bookmark, color: Colors.orange.withOpacity(0.8), size: tileSize * 0.4),
-            ),
-        ],
+            if (isCurrent)
+              Positioned(
+                top: -1,
+                child: Icon(Icons.bookmark, color: Colors.orange.withOpacity(0.8), size: tileSize * 0.4),
+              ),
+            if (isCompleted)
+              Positioned(
+                bottom: 1,
+                right: 1,
+                child: Icon(Icons.check_circle, color: Colors.white.withOpacity(0.8), size: tileSize * 0.3),
+              ),
+          ],
+        ),
       ),
     );
   }

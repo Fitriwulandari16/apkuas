@@ -12,17 +12,15 @@ class ProgressNotifier extends Notifier<int> {
 
   @override
   int build() {
-    // Di Riverpod 3, state awal didefinisikan di dalam fungsi build()
-    box = Hive.box('settings'); 
-    final initialLevel = box.get('unlockedLevel', defaultValue: 1);
+    box = Hive.box('progress'); 
+    final initialLevel = box.get('highestLevelReached', defaultValue: 1);
     
     print('DEBUG: Data Progress Dimuat. Level Terbuka: $initialLevel');
     return initialLevel;
   }
 
   void saveProgress() {
-    // Kita tetap bisa menggunakan 'state' untuk mengambil nilai saat ini
-    box.put('unlockedLevel', state);
+    box.put('highestLevelReached', state);
     print('DEBUG: Data Progress Disimpan. Level Terbuka: $state');
   }
 
