@@ -287,91 +287,124 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
   }
 
   void _showProfileDialog(BuildContext context) {
-    showGeneralDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Profile',
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => const SizedBox(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                Text(
-                  ref.read(profileProvider).avatarIcon,
-                  style: const TextStyle(fontSize: 80),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  ref.read(profileProvider).name,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.stars_rounded, color: Colors.orange),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${ref.read(profileProvider).totalStars} Bintang',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+      ),
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final profile = ref.watch(profileProvider);
+            final avatars = [
+              {'emoji': '🦁', 'name': 'Singa'},
+              {'emoji': '🦊', 'name': 'Rubah'},
+              {'emoji': '🐶', 'name': 'Anjing'},
+              {'emoji': '🐰', 'name': 'Kelinci'},
+              {'emoji': '🐼', 'name': 'Panda'},
+              {'emoji': '🐯', 'name': 'Harimau'},
+            ];
+
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(3),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                const Text('Pilih Avatar Kamu:', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: ['🦁', '🦊', '🐶', '🐰', '🐼', '🐯'].map((emoji) {
-                    bool isSelected = ref.watch(profileProvider).avatarIcon == emoji;
-                    return GestureDetector(
-                      onTap: () {
-                        ref.read(profileProvider.notifier).updateAvatar(emoji);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? CilikTheme.mintGreen.withOpacity(0.3) : Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? CilikTheme.tealTua : Colors.transparent,
-                            width: 3,
-                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: const Color(0xFFE0F2F1),
+                          child: Text(profile.avatarIcon, style: const TextStyle(fontSize: 45)),
                         ),
-                        child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                        const SizedBox(width: 20),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile.name,
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.stars_rounded, color: Colors.orange, size: 20),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${profile.totalStars} Bintang',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Pilih Avatar Kamu:',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: avatars.length,
+                      itemBuilder: (context, index) {
+                        final avatar = avatars[index];
+                        bool isSelected = profile.avatarIcon == avatar['emoji'];
+
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            print('DEBUG: Avatar ${avatar['name']} diklik');
+                            ref.read(profileProvider.notifier).updateAvatar(avatar['emoji']!);
+                            // Closing with a slight delay so they see the selection
+                            Future.delayed(const Duration(milliseconds: 200), () {
+                              if (context.mounted) Navigator.pop(context);
+                            });
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF00695C).withOpacity(0.1) : Colors.grey.shade50,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF00695C) : Colors.transparent,
+                                width: 4,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(avatar['emoji']!, style: const TextStyle(fontSize: 40)),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CilikTheme.tealTua,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                  ),
-                  child: const Text('TUTUP', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
