@@ -9,6 +9,7 @@ import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/features/awards_screen.dart';
 import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 import 'package:apkuas/features/spatial/shape_completion_screen.dart';
+import 'package:apkuas/features/spatial/bee_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +42,8 @@ class CilikCodeApp extends StatelessWidget {
         '/awards': (context) => const AwardsScreen(),
         '/level_10': (context) => const StarColoringScreen(),
         '/level_11': (context) => const ShapeCompletionScreen(),
-        '/level_12': (context) => const Scaffold(body: Center(child: Text('Level 12 Coming Soon!'))),
+        '/level_12': (context) => const BeeHomeScreen(),
+        '/level_13': (context) => const Scaffold(body: Center(child: Text('Level 13 Coming Soon!'))),
       },
     );
   }
