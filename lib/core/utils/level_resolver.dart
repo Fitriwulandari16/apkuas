@@ -11,6 +11,7 @@ import 'package:apkuas/features/matching/flower_matching_screen.dart';
 import 'package:apkuas/features/matching/shape_line_matching_screen.dart';
 import 'package:apkuas/features/spatial/hot_air_balloon_coloring_screen.dart';
 import 'package:apkuas/features/spatial/advanced_balloon_coloring_screen.dart';
+import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -34,7 +35,7 @@ class LevelResolver {
       case 9:
         return const ShapeLineMatchingScreen(levelId: 9);
       case 10:
-        return const HotAirBalloonColoringScreen(levelId: 10);
+        return const StarColoringScreen(levelId: 10);
       case 11:
         return const AdvancedBalloonColoringScreen(levelId: 11);
       default:
@@ -96,10 +97,14 @@ class _LevelTransitionScreenState extends State<LevelTransitionScreen> with Sing
     // Auto navigate after transition
     Future.delayed(const Duration(milliseconds: 2000), () {
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(widget.nextLevelId)),
-        );
+        if (widget.nextLevelId == 11) {
+          Navigator.pushReplacementNamed(context, '/level_11');
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(widget.nextLevelId)),
+          );
+        }
       }
     });
   }

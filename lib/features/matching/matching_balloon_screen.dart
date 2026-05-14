@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-//import 'package:apkuas/core/theme/cilik_theme.dart';
+import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class MatchingBalloonScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -14,7 +16,7 @@ class MatchingBalloonScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchingBalloonScreen> createState() => _MatchingBalloonScreenState();
 }
 
-class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
+class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> with TickerProviderStateMixin {
   late List<Color> startGroup;
   late List<Color> endGroup;
   Map<Color, bool> matchedColors = {};
@@ -26,28 +28,62 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
 
   final Map<Color, GlobalKey> startKeys = {};
   final Map<Color, GlobalKey> endKeys = {};
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool isLevelComplete = false;
 
   @override
-  void initState() { super.initState(); _resetGame(); }
+  void initState() { 
+    super.initState(); 
+    _resetGame(); 
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 
   void _resetGame() {
-    List<Color> colors = [const Color(0xFFFFD700), const Color(0xFFFF69B4), const Color(0xFF32CD32), const Color(0xFF1E90FF), const Color(0xFFFF4500)];
-    startKeys.clear(); endKeys.clear();
-    for (var color in colors) { startKeys[color] = GlobalKey(); endKeys[color] = GlobalKey(); }
+    // Ensuring standard colors including Red
+    List<Color> colors = [
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+    ];
+    startKeys.clear(); 
+    endKeys.clear();
+    for (var color in colors) { 
+      startKeys[color] = GlobalKey(); 
+      endKeys[color] = GlobalKey(); 
+    }
     setState(() {
-      startGroup = List.from(colors); endGroup = List.from(colors)..shuffle();
+      startGroup = List.from(colors); 
+      endGroup = List.from(colors)..shuffle();
       matchedColors = {for (var color in colors) color: false};
-      connections = []; currentDragStart = null; currentDragEnd = null; activeDragColor = null; isLevelComplete = false;
+      connections = []; 
+      currentDragStart = null; 
+      currentDragEnd = null; 
+      activeDragColor = null; 
+      isLevelComplete = false;
     });
+  }
+
+  void _playSound(String name) async {
+    // Placeholder for sound implementation
+    // await _audioPlayer.play(AssetSource('sounds/$name.mp3'));
   }
 
   void _onLevelComplete() {
     setState(() => isLevelComplete = true);
     HapticService.success();
+    _playSound('level_win');
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
-    Future.delayed(const Duration(seconds: 2), () { if (mounted) _showWinDialog(); });
+    Future.delayed(const Duration(seconds: 2), () { 
+      if (mounted) _showWinDialog(); 
+    });
   }
 
   void _showWinDialog() {
@@ -56,12 +92,23 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        title: const Text('HEBAT! 🎈', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue)),
-        content: const Text('Level 3 Selesai! Kamu sangat pintar mencocokkan warna!', textAlign: TextAlign.center),
+        title: Text('HEBAT! 🎈', 
+          textAlign: TextAlign.center, 
+          style: GoogleFonts.fredoka(fontSize: 32, fontWeight: FontWeight.bold, color: CilikTheme.tealTua)
+        ),
+        content: Text('Level 3 Selesai! Kamu sangat pintar mencocokkan warna!', 
+          textAlign: TextAlign.center,
+          style: GoogleFonts.fredoka(fontSize: 18),
+        ),
         actions: [
           Center(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: CilikTheme.tealTua, 
+                foregroundColor: Colors.white, 
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
               onPressed: () {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LevelTransitionScreen(nextLevelId: 4)));
               },
@@ -75,49 +122,65 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
 
   void _handleDragStart(Color color, Offset globalPos) {
     if (matchedColors[color]!) return;
-    setState(() { activeDragColor = color; currentDragStart = globalPos; currentDragEnd = globalPos; });
+    
+    // Find the center of the balloon
+    final RenderBox? box = startKeys[color]?.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null) {
+      final position = box.localToGlobal(Offset(box.size.width / 2, box.size.height));
+      setState(() { 
+        activeDragColor = color; 
+        currentDragStart = position; 
+        currentDragEnd = position; 
+      });
+    }
     HapticService.light();
   }
 
-  void _handleDragUpdate(Offset globalPos) { if (activeDragColor == null) return; setState(() => currentDragEnd = globalPos); }
+  void _handleDragUpdate(Offset globalPos) { 
+    if (activeDragColor == null) return; 
+    setState(() => currentDragEnd = globalPos); 
+  }
 
   void _handleDragEnd(Offset globalPos) {
     if (activeDragColor == null || !mounted) return;
     
-    // Safety check for all render boxes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       
       Color? hitColor;
+      Offset? hitCenter;
+
       for (var entry in endKeys.entries) {
-        final RenderObject? renderObject = entry.value.currentContext?.findRenderObject();
-        if (renderObject is RenderBox && renderObject.hasSize) {
-          final position = renderObject.localToGlobal(Offset.zero);
-          final size = renderObject.size;
+        final RenderBox? renderBox = entry.value.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox != null && renderBox.hasSize) {
+          final position = renderBox.localToGlobal(Offset.zero);
+          final size = renderBox.size;
           if (Rect.fromLTWH(position.dx, position.dy, size.width, size.height).contains(globalPos)) {
             hitColor = entry.key;
+            hitCenter = renderBox.localToGlobal(Offset(size.width / 2, 0));
             break;
           }
         }
       }
 
       if (hitColor != null && hitColor == activeDragColor) {
-        final RenderObject? startRO = startKeys[activeDragColor!]?.currentContext?.findRenderObject();
-        final RenderObject? endRO = endKeys[hitColor]?.currentContext?.findRenderObject();
-        
-        if (startRO is RenderBox && startRO.hasSize && endRO is RenderBox && endRO.hasSize) {
-          setState(() {
-            matchedColors[activeDragColor!] = true;
-            connections.add(_Connection(
-              color: activeDragColor!,
-              start: startRO.localToGlobal(Offset(startRO.size.width / 2, startRO.size.height / 2)),
-              end: endRO.localToGlobal(Offset(endRO.size.width / 2, endRO.size.height / 2)),
-            ));
-          });
-          HapticService.success();
-          if (matchedColors.values.every((v) => v == true)) _onLevelComplete();
-        }
+        _playSound('success');
+        setState(() {
+          matchedColors[activeDragColor!] = true;
+          connections.add(_Connection(
+            color: activeDragColor!,
+            start: currentDragStart!,
+            end: hitCenter!,
+            isCorrect: true,
+          ));
+        });
+        HapticService.success();
+        if (matchedColors.values.every((v) => v == true)) _onLevelComplete();
+      } else {
+        // Wrong match or missed - add a temporary connection that fades out
+        _playSound('error');
       }
+
       setState(() {
         activeDragColor = null;
         currentDragStart = null;
@@ -130,27 +193,72 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
   Widget build(BuildContext context) {
     return ResponsiveWrapper(
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF0F4F8),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text('Cocokkan Balon', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text('Cocokkan Balon', 
+            style: GoogleFonts.fredoka(color: CilikTheme.tealTua, fontWeight: FontWeight.bold, fontSize: 24)
           ),
           centerTitle: true,
         ),
         body: Stack(
           children: [
-            Positioned(top: 10, left: 24, child: Row(children: [const Icon(Icons.star, color: Colors.orangeAccent, size: 20), const SizedBox(width: 8), Text('Hubungkan warna yang sama', style: TextStyle(color: Colors.grey.shade700, fontSize: 16, fontWeight: FontWeight.w600))])),
-            Positioned.fill(child: LayoutBuilder(builder: (context, constraints) => CustomPaint(painter: _ConnectionPainter(activeStart: currentDragStart, activeEnd: currentDragEnd, activeColor: activeDragColor, connections: connections, context: context)))),
+            Positioned(
+              top: 10, 
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.tips_and_updates_rounded, color: Colors.orangeAccent, size: 22),
+                      const SizedBox(width: 8),
+                      Text('Hubungkan warna yang sama', 
+                        style: GoogleFonts.fredoka(color: Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.w600)
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) => CustomPaint(
+                  painter: _ConnectionPainter(
+                    activeStart: currentDragStart, 
+                    activeEnd: currentDragEnd, 
+                    activeColor: activeDragColor, 
+                    connections: connections, 
+                    context: context
+                  )
+                )
+              )
+            ),
             Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(height: 60),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: startGroup.map((color) => _buildItem(color, true)).toList()),
+                const SizedBox(height: 100),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
+                  children: startGroup.map((color) => _buildItem(color, true)).toList()
+                ),
                 const Spacer(),
-                Padding(padding: const EdgeInsets.only(bottom: 80), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: endGroup.map((color) => _buildItem(color, false)).toList())),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
+                  children: endGroup.map((color) => _buildItem(color, false)).toList()
+                ),
+                const SizedBox(height: 120),
               ],
             ),
             if (isLevelComplete) const IgnorePointer(child: _ConfettiOverlay()),
@@ -162,48 +270,126 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> {
 
   Widget _buildItem(Color color, bool isStart) {
     final key = isStart ? startKeys[color]! : endKeys[color]!;
+    final bool isMatched = matchedColors[color] ?? false;
+
     return Flexible(
       child: GestureDetector(
         key: key,
         onPanStart: isStart ? (details) => _handleDragStart(color, details.globalPosition) : null,
         onPanUpdate: isStart ? (details) => _handleDragUpdate(details.globalPosition) : null,
         onPanEnd: isStart ? (details) => _handleDragEnd(details.globalPosition) : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isStart) Container(width: 2, height: 15, color: Colors.black12),
-            AspectRatio(
-              aspectRatio: 60 / 75,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.all(Radius.elliptical(30, 37)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (isStart) Container(width: 2, height: 15, color: Colors.black12),
-          ],
+        child: _AnimatedBalloon(
+          color: color, 
+          isMatched: isMatched, 
+          isStart: isStart,
         ),
       ),
     );
   }
 }
 
-class _Connection { final Color color; final Offset start; final Offset end; _Connection({required this.color, required this.start, required this.end}); }
+class _AnimatedBalloon extends StatefulWidget {
+  final Color color;
+  final bool isMatched;
+  final bool isStart;
+
+  const _AnimatedBalloon({required this.color, required this.isMatched, required this.isStart});
+
+  @override
+  State<_AnimatedBalloon> createState() => _AnimatedBalloonState();
+}
+
+class _AnimatedBalloonState extends State<_AnimatedBalloon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, widget.isMatched ? 0 : (widget.isStart ? 1.0 : -1.0) * 5 * _controller.value),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!widget.isStart) Container(width: 3, height: 20, color: Colors.grey.shade400),
+              Container(
+                width: 60,
+                height: 75,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      widget.color.withOpacity(0.7),
+                      widget.color,
+                    ],
+                    center: const Alignment(-0.3, -0.3),
+                    radius: 0.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.color.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: 15,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              if (widget.isStart) Container(width: 3, height: 20, color: Colors.grey.shade400),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Connection { 
+  final Color color; 
+  final Offset start; 
+  final Offset end; 
+  final bool isCorrect;
+  _Connection({required this.color, required this.start, required this.end, this.isCorrect = false}); 
+}
+
 class _ConnectionPainter extends CustomPainter {
-  final Offset? activeStart; final Offset? activeEnd; final Color? activeColor; final List<_Connection> connections; final BuildContext context;
+  final Offset? activeStart; 
+  final Offset? activeEnd; 
+  final Color? activeColor; 
+  final List<_Connection> connections; 
+  final BuildContext context;
+
   _ConnectionPainter({this.activeStart, this.activeEnd, this.activeColor, required this.connections, required this.context});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 3
+      ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
@@ -211,16 +397,23 @@ class _ConnectionPainter extends CustomPainter {
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
     final canvasOffset = renderObject.localToGlobal(Offset.zero);
+
+    // Draw completed connections
     for (var conn in connections) {
-      paint.color = Colors.black54;
+      paint.color = conn.isCorrect ? Colors.green.shade400 : Colors.grey.shade300;
+      paint.strokeWidth = 5.0;
       canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
     }
+
+    // Draw active drag line
     if (activeStart != null && activeEnd != null && activeColor != null) {
-      paint.color = activeColor!.withOpacity(0.5);
-      paint.strokeWidth = 5;
+      paint.color = Colors.grey.shade400;
+      paint.strokeWidth = 4.0;
+      // Draw a dashed or dotted line for active drag could be nice, but simple solid for now
       canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
     }
   }
+
   @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 

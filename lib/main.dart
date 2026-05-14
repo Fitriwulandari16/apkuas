@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
-//import 'package:apkuas/features/coding/coding_workspace.dart';
 import 'package:apkuas/features/level_selection_screen.dart';
 import 'package:apkuas/features/adventure_map_screen.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
+import 'package:apkuas/features/awards_screen.dart';
+import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,9 @@ class CilikCodeApp extends StatelessWidget {
       routes: {
         '/': (context) => const MainMenuScreen(),
         '/adventure_map': (context) => const AdventureMapScreen(),
+        '/awards': (context) => const AwardsScreen(),
+        '/level_10': (context) => const StarColoringScreen(),
+        '/level_11': (context) => const Scaffold(body: Center(child: Text('Level 11 Coming Soon!'))),
       },
     );
   }
@@ -273,7 +277,10 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                         icon: Icons.stars_rounded,
                         label: 'Awards',
                         isSelected: _selectedIndex == 2,
-                        onTap: () => setState(() => _selectedIndex = 2),
+                        onTap: () {
+                          setState(() => _selectedIndex = 2);
+                          Navigator.pushNamed(context, '/awards');
+                        },
                       ),
                     ],
                   ),
@@ -290,123 +297,147 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
       ),
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final profile = ref.watch(profileProvider);
-            final avatars = [
-              {'emoji': '🦁', 'name': 'Singa'},
-              {'emoji': '🦊', 'name': 'Rubah'},
-              {'emoji': '🐶', 'name': 'Anjing'},
-              {'emoji': '🐰', 'name': 'Kelinci'},
-              {'emoji': '🐼', 'name': 'Panda'},
-              {'emoji': '🐯', 'name': 'Harimau'},
-            ];
+      builder: (context) => const _ProfilePopupContent(),
+    );
+  }
+}
 
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+class _ProfilePopupContent extends ConsumerStatefulWidget {
+  const _ProfilePopupContent();
+
+  @override
+  ConsumerState<_ProfilePopupContent> createState() => _ProfilePopupContentState();
+}
+
+class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
+  bool isUpdating = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(profileProvider);
+    final avatars = [
+      {'emoji': '🦁', 'name': 'Singa'},
+      {'emoji': '🦊', 'name': 'Rubah'},
+      {'emoji': '🐶', 'name': 'Anjing'},
+      {'emoji': '🐰', 'name': 'Kelinci'},
+      {'emoji': '🐼', 'name': 'Panda'},
+      {'emoji': '🐯', 'name': 'Harimau'},
+    ];
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 6,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: const Color(0xFFE0F2F1),
+                  child: Text(profile.avatarIcon, style: const TextStyle(fontSize: 45)),
+                ),
+                const SizedBox(width: 20),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 60,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
+                    Text(
+                      profile.name,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundColor: const Color(0xFFE0F2F1),
-                          child: Text(profile.avatarIcon, style: const TextStyle(fontSize: 45)),
-                        ),
-                        const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              profile.name,
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.stars_rounded, color: Colors.orange, size: 20),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${profile.totalStars} Bintang',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16),
-                                ),
-                              ],
-                            ),
-                          ],
+                        const Icon(Icons.stars_rounded, color: Colors.orange, size: 20),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${profile.totalStars} Bintang',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Pilih Avatar Kamu:',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
-                      ),
-                      itemCount: avatars.length,
-                      itemBuilder: (context, index) {
-                        final avatar = avatars[index];
-                        bool isSelected = profile.avatarIcon == avatar['emoji'];
-
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            print('DEBUG: Avatar ${avatar['name']} diklik');
-                            ref.read(profileProvider.notifier).updateAvatar(avatar['emoji']!);
-                            // Closing with a slight delay so they see the selection
-                            Future.delayed(const Duration(milliseconds: 200), () {
-                              if (context.mounted) Navigator.pop(context);
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF00695C).withOpacity(0.1) : Colors.grey.shade50,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? const Color(0xFF00695C) : Colors.transparent,
-                                width: 4,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(avatar['emoji']!, style: const TextStyle(fontSize: 40)),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
                   ],
                 ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Pilih Avatar Kamu:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
               ),
-            );
-          },
-        );
-      },
+            ),
+            const SizedBox(height: 20),
+            AbsorbPointer(
+              absorbing: isUpdating,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                ),
+                itemCount: avatars.length,
+                itemBuilder: (context, index) {
+                  final avatar = avatars[index];
+                  // SINGLE SELECTION LOGIC: Only one can be true based on the global state
+                  bool isSelected = profile.avatarIcon == avatar['emoji'];
+
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      if (isUpdating) return;
+                      
+                      setState(() => isUpdating = true);
+                      print('DEBUG: Memilih Avatar ${avatar['name']}');
+                      
+                      // Update the global state
+                      ref.read(profileProvider.notifier).updateAvatar(avatar['emoji']!);
+                      
+                      // Auto-close after selection with brief visual confirmation
+                      Future.delayed(const Duration(milliseconds: 250), () {
+                        if (mounted) {
+                          Navigator.pop(context);
+                        }
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF00695C).withOpacity(0.1) : Colors.grey.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF00695C) : Colors.transparent,
+                          width: 4,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(avatar['emoji']!, style: const TextStyle(fontSize: 40)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
     );
   }
 }

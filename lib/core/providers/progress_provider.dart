@@ -1,39 +1,48 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:apkuas/core/providers/profile_provider.dart';
 
-// 1. Definisikan Provider menggunakan NotifierProvider (Gaya Baru)
-final progressProvider = NotifierProvider<ProgressNotifier, int>(() {
-  return ProgressNotifier();
-});
+// 1. Definisikan Provider menggunakan NotifierProvider
+final progressProvider = NotifierProvider<ProgressNotifier, int>(ProgressNotifier.new);
 
-// 2. Gunakan 'Notifier' bukan lagi 'StateNotifier'
+// 2. Notifier untuk mengelola level tertinggi yang dicapai
 class ProgressNotifier extends Notifier<int> {
-  late Box box;
+  late Box<dynamic> _box;
 
   @override
   int build() {
-    box = Hive.box('progress'); 
-    final initialLevel = box.get('highestLevelReached', defaultValue: 1);
+    _box = Hive.box('progress'); 
+    final initialLevel = _box.get('highestLevelReached', defaultValue: 1);
     
     print('DEBUG: Data Progress Dimuat. Level Terbuka: $initialLevel');
-    return initialLevel;
+    return initialLevel as int;
   }
 
   void saveProgress() {
-    box.put('highestLevelReached', state);
+    _box.put('highestLevelReached', state);
     print('DEBUG: Data Progress Disimpan. Level Terbuka: $state');
   }
 
   void completeLevel(int levelId) {
     print('DEBUG: Mencoba menyelesaikan Level $levelId. Status saat ini: $state');
     
+    // Tambahkan 10 bintang ke profil
+    ref.read(profileProvider.notifier).addStars(10);
+    
     if (levelId == state) {
-      // Mengupdate state di Notifier baru tetap menggunakan 'state'
+      // Buka level berikutnya
       state = state + 1;
       saveProgress();
       print('DEBUG: Level Berhasil Diupdate! Level Terbuka Sekarang: $state');
     } else if (levelId < state) {
-      print('DEBUG: Level ini sudah pernah diselesaikan.');
+      print('DEBUG: Level ini sudah pernah diselesaikan. Bintang tetap ditambahkan!');
+    }
+  }
+
+  void updateHighestLevel(int levelId) {
+    if (levelId > state) {
+      state = levelId;
+      saveProgress();
     }
   }
 
