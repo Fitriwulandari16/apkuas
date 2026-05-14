@@ -10,6 +10,7 @@ import 'package:apkuas/features/awards_screen.dart';
 import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 import 'package:apkuas/features/spatial/shape_completion_screen.dart';
 import 'package:apkuas/features/spatial/bee_home_screen.dart';
+import 'package:apkuas/features/matching/composition_matching_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,8 @@ class CilikCodeApp extends StatelessWidget {
         '/level_10': (context) => const StarColoringScreen(),
         '/level_11': (context) => const ShapeCompletionScreen(),
         '/level_12': (context) => const BeeHomeScreen(),
-        '/level_13': (context) => const Scaffold(body: Center(child: Text('Level 13 Coming Soon!'))),
+        '/level_13': (context) => const CompositionMatchingScreen(),
+        '/level_14': (context) => const Scaffold(body: Center(child: Text('Level 14 Coming Soon!'))),
       },
     );
   }
