@@ -8,6 +8,7 @@ import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/features/awards_screen.dart';
 import 'package:apkuas/features/spatial/star_coloring_screen.dart';
+import 'package:apkuas/features/spatial/shape_completion_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +40,8 @@ class CilikCodeApp extends StatelessWidget {
         '/adventure_map': (context) => const AdventureMapScreen(),
         '/awards': (context) => const AwardsScreen(),
         '/level_10': (context) => const StarColoringScreen(),
-        '/level_11': (context) => const Scaffold(body: Center(child: Text('Level 11 Coming Soon!'))),
+        '/level_11': (context) => const ShapeCompletionScreen(),
+        '/level_12': (context) => const Scaffold(body: Center(child: Text('Level 12 Coming Soon!'))),
       },
     );
   }

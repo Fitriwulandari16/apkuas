@@ -12,6 +12,7 @@ import 'package:apkuas/features/matching/shape_line_matching_screen.dart';
 import 'package:apkuas/features/spatial/hot_air_balloon_coloring_screen.dart';
 import 'package:apkuas/features/spatial/advanced_balloon_coloring_screen.dart';
 import 'package:apkuas/features/spatial/star_coloring_screen.dart';
+import 'package:apkuas/features/spatial/shape_completion_screen.dart';
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -37,7 +38,7 @@ class LevelResolver {
       case 10:
         return const StarColoringScreen(levelId: 10);
       case 11:
-        return const AdvancedBalloonColoringScreen(levelId: 11);
+        return const ShapeCompletionScreen(levelId: 11);
       default:
         // Fallback or placeholder for future levels
         return Builder(
