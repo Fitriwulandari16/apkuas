@@ -11,6 +11,14 @@ import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 import 'package:apkuas/features/spatial/shape_completion_screen.dart';
 import 'package:apkuas/features/spatial/bee_home_screen.dart';
 import 'package:apkuas/features/matching/composition_matching_screen.dart';
+import 'package:apkuas/features/parents/parent_gate_screen.dart';
+import 'package:apkuas/features/parents/parent_dashboard_screen.dart';
+import 'package:apkuas/features/creativity/free_coloring_screen.dart';
+import 'package:apkuas/features/creativity/gallery_screen.dart';
+import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'package:apkuas/core/services/gallery_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +27,7 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('settings');
   await Hive.openBox('progress');
+  await GalleryService.init();
 
   runApp(
     const ProviderScope(
@@ -46,6 +55,10 @@ class CilikCodeApp extends StatelessWidget {
         '/level_12': (context) => const BeeHomeScreen(),
         '/level_13': (context) => const CompositionMatchingScreen(),
         '/level_14': (context) => const Scaffold(body: Center(child: Text('Level 14 Coming Soon!'))),
+        '/parent_gate': (context) => const ParentGateScreen(),
+        '/parent_dashboard': (context) => const ParentDashboardScreen(),
+        '/free_coloring': (context) => const FreeColoringScreen(),
+        '/gallery': (context) => const GalleryScreen(),
       },
     );
   }
@@ -60,6 +73,7 @@ class MainMenuScreen extends ConsumerStatefulWidget {
 
 class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
   int _selectedIndex = 0;
+  String? _activeFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -186,35 +200,42 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                         ),
                           const SizedBox(height: 48),
 
-                          // Main Buttons
-                          _StylizedButton(
-                            title: 'Mulai Belajar',
-                            icon: Icons.play_arrow_rounded,
-                            color: CilikTheme.tealTua,
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const LevelSelectionScreen()),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _StylizedButton(
-                            title: 'Peta Petualangan',
-                            icon: Icons.map_rounded,
-                            color: CilikTheme.woodBrown,
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/adventure_map');
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _StylizedButton(
-                            title: 'Dashboard Orang Tua',
-                            icon: Icons.account_tree_rounded,
-                            color: Colors.white,
-                            textColor: Colors.blueGrey,
-                            onPressed: () {},
-                          ),
+                          if (_activeFilter == null) ...[
+                            _StylizedButton(
+                              title: 'Mulai Belajar',
+                              icon: Icons.play_arrow_rounded,
+                              color: CilikTheme.tealTua,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const LevelSelectionScreen()),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _StylizedButton(
+                              title: 'Peta Petualangan',
+                              icon: Icons.map_rounded,
+                              color: CilikTheme.woodBrown,
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/adventure_map');
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _StylizedButton(
+                              title: 'Dashboard Orang Tua',
+                              icon: Icons.account_tree_rounded,
+                              color: Colors.white,
+                              textColor: Colors.blueGrey,
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/parent_gate');
+                              },
+                            ),
+                          ] else if (_activeFilter == 'Logika Dasar') ...[
+                            _buildLevelGrid(),
+                          ] else if (_activeFilter == 'Kreativitas') ...[
+                            _buildCreativityOptions(),
+                          ],
                           const SizedBox(height: 40),
 
                           // Badges
@@ -226,6 +247,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                                 icon: Icons.extension_rounded,
                                 color: const Color(0xFFE3F2FD),
                                 iconColor: Colors.teal,
+                                isSelected: _activeFilter == 'Logika Dasar',
+                                onTap: () => setState(() => _activeFilter = _activeFilter == 'Logika Dasar' ? null : 'Logika Dasar'),
                               ),
                               const SizedBox(width: 12),
                               _Badge(
@@ -233,6 +256,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                                 icon: Icons.auto_awesome_rounded,
                                 color: const Color(0xFFF3E5F5),
                                 iconColor: Colors.teal,
+                                isSelected: _activeFilter == 'Kreativitas',
+                                onTap: () => setState(() => _activeFilter = _activeFilter == 'Kreativitas' ? null : 'Kreativitas'),
                               ),
                             ],
                           ),
@@ -296,6 +321,80 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLevelGrid() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Pilih Level', style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold)),
+            TextButton(onPressed: () => setState(() => _activeFilter = null), child: const Text('Kembali')),
+          ],
+        ),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+          ),
+          itemCount: 13,
+          itemBuilder: (context, index) {
+            int levelId = index + 1;
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(levelId)),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                ),
+                child: Center(
+                  child: Text('$levelId', style: GoogleFonts.fredoka(fontSize: 18, fontWeight: FontWeight.bold, color: CilikTheme.tealTua)),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCreativityOptions() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Menu Kreativitas', style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold)),
+            TextButton(onPressed: () => setState(() => _activeFilter = null), child: const Text('Kembali')),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _StylizedButton(
+          title: 'Kanvas Mewarnai Bebas',
+          icon: Icons.brush_rounded,
+          color: Colors.pink.shade300,
+          onPressed: () => Navigator.pushNamed(context, '/free_coloring'),
+        ),
+        const SizedBox(height: 16),
+        _StylizedButton(
+          title: 'Galeri Karyaku',
+          icon: Icons.collections_rounded,
+          color: Colors.orange.shade400,
+          onPressed: () => Navigator.pushNamed(context, '/gallery'),
+        ),
+      ],
     );
   }
 
@@ -526,36 +625,45 @@ class _Badge extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Color iconColor;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const _Badge({
     required this.label,
     required this.icon,
     required this.color,
     required this.iconColor,
+    this.isSelected = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.blueGrey,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? iconColor.withOpacity(0.2) : color,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected ? Border.all(color: iconColor, width: 2) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isSelected ? iconColor : Colors.blueGrey,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
