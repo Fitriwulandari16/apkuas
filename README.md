@@ -1,57 +1,99 @@
-🎮 Cilik Code: Game Edukasi Logika & Algoritma Anak
+BLUEPRINT STRUKTUR & ALUR KERJA APLIKASI: CILIKCODE
 
-Cilik Code adalah aplikasi permainan edukasi berbasis Android yang dirancang khusus untuk memperkenalkan konsep logika dasar dan "coding mindset" kepada anak usia dini (Preschool/TK). Aplikasi ini dikembangkan menggunakan Flutter dengan pendekatan visual yang ceria dan interaktif.
+Nama Aplikasi: CilikCode
 
-🚀 Alur Kerja Aplikasi (Workflow)
+Tagline: Belajar Coding Jadi Seru!
 
-Aplikasi ini dirancang dengan alur linear untuk memastikan anak belajar secara bertahap:
+Target Pengguna: Anak-anak (4-7 Tahun)
 
-Splash Screen & Welcome: Menampilkan identitas Cilik Code sebagai pembuka.
+Tema Visual: Teal & Earth Tone (User-Friendly & Playful)
 
-Menu Utama: Halaman penyambutan dengan tombol 'MULAI' untuk masuk ke petualangan.
+1. NAVIGASI UTAMA & ANTARMUKA (UI/UX)
 
-Peta Petualangan (Adventure Map):
+A. Header & Manajemen Profil
 
-Menggunakan layout unik berbentuk siluet piala/vas.
+Ikon Profil (Pojok Kanan Atas): - Menampilkan avatar kustom anak.
 
-Progress System: Level 1-96 yang terbuka secara bertahap (Level Locking).
+Akses cepat untuk melihat statistik pribadi (Total Bintang & Lencana).
 
-Gameplay (Level 1 - 12+):
+Memungkinkan pergantian nama pengguna untuk personalisasi pengalaman belajar.
 
-Tantangan kognitif mulai dari mencocokkan bentuk, warna, hingga logika kondisional.
+Tombol Navigasi Home/Map/Awards: Terletak di bagian bawah (Bottom Navigation Bar) untuk kemudahan akses jempol anak.
 
-Contoh: Mewarnai Balon (Lvl 11) dan Puzzle Completion (Lvl 12).
+B. Menu Utama (Home Screen)
 
-Success Feedback: Animasi kemenangan (Confetti) sebagai apresiasi bagi anak sebelum lanjut ke level berikutnya.
+Terdapat tiga akses utama yang membagi fungsi aplikasi:
 
-🛠️ Blueprint Arsitektur Teknis
+Mulai Belajar: Pintu masuk langsung ke level yang sedang aktif atau level terbaru yang belum diselesaikan.
 
-1. Stack Teknologi
+Peta Petualangan: Visualisasi perjalanan belajar anak dalam bentuk peta interaktif (Node Level).
 
-Framework: Flutter (Dart)
+Dashboard Orang Tua: Area khusus monitor dengan pengamanan Parental Gate.
 
-State Management: Provider (Sinkronisasi status level).
+2. MODUL PEMBELAJARAN (CORE MODULES)
 
-Penyimpanan: SharedPreferences (Menyimpan progres terakhir).
+Aplikasi dibagi menjadi dua kategori besar menggunakan sistem tab di halaman utama:
 
-Target Perangkat: Android (Optimasi untuk layar smartphone seperti V2333).
+Kategori 1: Logika Dasar (Computational Thinking)
 
-2. Fitur Unggulan (Technical Highlights)
+Berfokus pada penyelesaian masalah terstruktur.
 
-Custom Grid Mapping: Teknik penyusunan baris dan kolom secara dinamis untuk menciptakan bentuk peta yang tidak kaku.
+Level 11 (Pattern Recognition): Aktivitas "Gunting & Tempel" digital. Anak menarik potongan bentuk untuk melengkapi pola geometri yang bolong.
 
-Interactive Logic: Implementasi Drag & Drop dan Color Picking untuk melatih koordinasi mata dan tangan.
+Level 12 (Conditional Logic): Misi "Bantu Lebah Pulang". Melatih logika algoritma bersyarat dengan mewarnai jalur hexagon mengikuti pola warna (Biru-Hijau).
 
-Precision Connection: Penggunaan GlobalKey untuk mendeteksi koordinat titik tengah objek secara akurat pada fitur tarik garis (Matching).
+Level 13 (Decomposition): Aktivitas "Hubungkan Komposisi". Melatih anak memecah objek kompleks menjadi bagian-bagian penyusunnya melalui sistem penarik garis.
 
-3. Struktur Proyek
+Kategori 2: Kreativitas (Expression)
 
-lib/providers/: Logika progres level pemain.
+Berfokus pada kebebasan berekspresi dan koordinasi motorik.
 
-lib/screens/: Antarmuka peta dan menu utama Cilik Code.
+Kanvas Mewarnai Bebas: Fitur menggambar tanpa batasan aturan atau skor.
 
-lib/screens/levels/: Modul tantangan interaktif tiap level.
+Sistem Autosave: Setiap karya yang selesai dibuat akan tersimpan secara otomatis ke "Galeri Karyaku".
 
-lib/widgets/: Komponen UI kustom (tombol, painter, dan animasi).
+Ekspor Gambar: Fitur untuk mengunduh hasil karya ke galeri internal perangkat pengguna.
 
-Proyek ini disusun untuk memenuhi tugas UAS Mata Kuliah Mobile Programming.
+3. FITUR PETA PETUALANGAN (ADVENTURE MAP)
+
+Fitur ini memberikan gambaran visual bagi anak mengenai progres mereka:
+
+Jalur Progres: Garis putus-putus yang menghubungkan satu level ke level berikutnya.
+
+Status Level:
+
+Terkunci (Gembok): Level yang belum bisa diakses.
+
+Terbuka (Bintang Kuning): Level yang sudah selesai dengan skor sempurna.
+
+Aktif (Animasi): Level yang sedang dikerjakan saat ini.
+
+4. DASHBOARD ORANG TUA (ANALYTICS)
+
+Fitur pengawasan bagi wali murid:
+
+Statistik Belajar: Menampilkan grafik durasi penggunaan aplikasi per hari.
+
+Penguasaan Materi: Radar chart atau progress bar yang menunjukkan seberapa paham anak terhadap materi Algorithm, Pattern, dan Logic.
+
+Kontrol Waktu: Pengaturan batas waktu (Screen Time) untuk menjaga kesehatan mata anak.
+
+5. ALUR KERJA SISTEM (SISTEM FLOW)
+
+Inisialisasi: Aplikasi mengecek SharedPreferences untuk memuat level terakhir yang terbuka dan total bintang.
+
+Validasi Gameplay: Sistem mengecek input user di setiap level (misal: warna hexagon di Level 12). Jika sesuai algoritma, lebah bergerak.
+
+Level Up Trigger: Setelah kondisi menang terpenuhi, aplikasi memicu LevelUpOverlay, memberikan bintang, dan memperbarui highestLevelReached.
+
+Simpan Data: Perubahan data (bintang, progres, gambar galeri) disimpan secara lokal untuk memastikan data tetap ada meskipun aplikasi ditutup.
+
+6. TEKNOLOGI YANG DIGUNAKAN
+
+Framework: Flutter (Mobile & Web)
+
+State Management: Provider / Signals (Sinkronisasi Bintang & Level)
+
+Grafik & Animasi: CustomPainter (Jalur Hexagon & Garis) & Rive/Lottie (Animasi Karakter)
+
+Storage: path_provider, shared_preferences, & RepaintBoundary (Simpan Gambar)
