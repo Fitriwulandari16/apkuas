@@ -49,6 +49,10 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
 
   late List<_CompositionData> leftItems;
   late List<_CompositionData> rightItems;
+  late List<GlobalKey> leftKeys;
+  late List<GlobalKey> rightKeys;
+  final GlobalKey _areaKey = GlobalKey();
+  
   Map<int, bool> matched = {};
   List<_Connection> connections = [];
   
@@ -66,6 +70,8 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
   void _resetLevel() {
     leftItems = List.from(items);
     rightItems = List.from(items)..shuffle();
+    leftKeys = List.generate(items.length, (_) => GlobalKey());
+    rightKeys = List.generate(items.length, (_) => GlobalKey());
     matched = {for (var item in items) item.id: false};
     connections = [];
   }
@@ -82,61 +88,63 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
     );
   }
 
-  Offset _getItemCenter(int index, bool isLeft, Size areaSize) {
-    double x = isLeft ? 80 : areaSize.width - 80;
-    double segmentHeight = areaSize.height / items.length;
-    double y = (index + 0.5) * segmentHeight;
-    return Offset(x, y);
+  Offset _getCenter(GlobalKey key) {
+    final RenderBox box = key.currentContext!.findRenderObject() as RenderBox;
+    final position = box.localToGlobal(Offset.zero);
+    return Offset(position.dx + box.size.width / 2, position.dy + box.size.height / 2);
   }
 
-  void _handleDragStart(Offset localPos, Size areaSize) {
+  void _handleDragStart(Offset globalPos, Size areaSize) {
     for (int i = 0; i < leftItems.length; i++) {
       final item = leftItems[i];
       if (matched[item.id]!) continue;
       
-      final center = _getItemCenter(i, true, areaSize);
-      // Hit area for the blue node
-      final nodePos = Offset(center.dx + 45, center.dy);
-      if ((localPos - nodePos).distance < 40) {
-        setState(() {
-          activeDragId = item.id;
-          currentDragStart = nodePos;
-          currentDragEnd = localPos;
-        });
-        HapticService.light();
-        return;
+      if (leftKeys[i].currentContext != null) {
+        final nodePos = _getCenter(leftKeys[i]);
+        if ((globalPos - nodePos).distance < 40) {
+          setState(() {
+            activeDragId = item.id;
+            currentDragStart = nodePos;
+            currentDragEnd = globalPos;
+          });
+          HapticService.light();
+          return;
+        }
       }
     }
   }
 
-  void _handleDragUpdate(Offset localPos) {
+  void _handleDragUpdate(Offset globalPos) {
     if (activeDragId == null) return;
-    setState(() => currentDragEnd = localPos);
+    setState(() => currentDragEnd = globalPos);
   }
 
-  void _handleDragEnd(Offset localPos, Size areaSize) {
+  void _handleDragEnd(Offset globalPos, Size areaSize) {
     if (activeDragId == null) return;
 
     int? hitIndex;
+    Offset? targetCenter;
     for (int i = 0; i < rightItems.length; i++) {
-      final center = _getItemCenter(i, false, areaSize);
-      final nodePos = Offset(center.dx - 45, center.dy);
-      if ((localPos - nodePos).distance < 40) {
-        if (rightItems[i].id == activeDragId) {
-          hitIndex = i;
+      if (rightKeys[i].currentContext != null) {
+        final nodePos = _getCenter(rightKeys[i]);
+        if ((globalPos - nodePos).distance < 30) { // Snap mechanics pada radius 30
+          if (rightItems[i].id == activeDragId) {
+            hitIndex = i;
+            targetCenter = nodePos;
+          }
+          break;
         }
-        break;
       }
     }
 
-    if (hitIndex != null) {
+    if (hitIndex != null && targetCenter != null) {
+      final item = leftItems.firstWhere((e) => e.id == activeDragId);
       setState(() {
         matched[activeDragId!] = true;
-        final targetCenter = _getItemCenter(hitIndex!, false, areaSize);
         connections.add(_Connection(
-          color: Colors.blue.shade700,
+          color: item.outerColor, // Warna dinamis dari objek asal
           start: currentDragStart!,
-          end: Offset(targetCenter.dx - 45, targetCenter.dy),
+          end: targetCenter!,
         ));
       });
       HapticService.success();
@@ -166,39 +174,45 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
                 builder: (context, constraints) {
                   final areaSize = Size(constraints.maxWidth, constraints.maxHeight);
                   return GestureDetector(
-                    onPanStart: (d) => _handleDragStart(d.localPosition, areaSize),
-                    onPanUpdate: (d) => _handleDragUpdate(d.localPosition),
-                    onPanEnd: (d) => _handleDragEnd(d.localPosition, areaSize),
+                    onPanStart: (d) => _handleDragStart(d.globalPosition, areaSize),
+                    onPanUpdate: (d) => _handleDragUpdate(d.globalPosition),
+                    onPanEnd: (d) => _handleDragEnd(d.globalPosition, areaSize),
                     child: Stack(
+                      key: _areaKey,
                       children: [
                         Container(color: Colors.transparent),
+
                         Positioned.fill(
                           child: CustomPaint(
                             painter: _LinePainter(
                               connections: connections,
                               activeStart: currentDragStart,
                               activeEnd: currentDragEnd,
+                              activeColor: activeDragId != null ? leftItems.firstWhere((e) => e.id == activeDragId).outerColor : null,
+                              context: context,
                             ),
                           ),
                         ),
 
-                        // Left Column (Composite Shapes)
                         ...List.generate(leftItems.length, (i) {
-                          final center = _getItemCenter(i, true, areaSize);
+                          // Rough position for Container, precise position taken via GlobalKey
+                          double segmentHeight = areaSize.height / items.length;
+                          double y = (i + 0.5) * segmentHeight;
                           return Positioned(
-                            left: center.dx - 40,
-                            top: center.dy - 40,
-                            child: _buildCompositeItem(leftItems[i], true),
+                            left: 40,
+                            top: y - 40,
+                            child: _buildCompositeItem(leftItems[i], true, leftKeys[i]),
                           );
                         }),
 
                         // Right Column (Separated Components)
                         ...List.generate(rightItems.length, (i) {
-                          final center = _getItemCenter(i, false, areaSize);
+                          double segmentHeight = areaSize.height / items.length;
+                          double y = (i + 0.5) * segmentHeight;
                           return Positioned(
-                            left: center.dx - 60,
-                            top: center.dy - 40,
-                            child: _buildCompositionItem(rightItems[i], false),
+                            right: 40,
+                            top: y - 40,
+                            child: _buildCompositionItem(rightItems[i], false, rightKeys[i]),
                           );
                         }),
 
@@ -261,7 +275,7 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
     );
   }
 
-  Widget _buildCompositeItem(_CompositionData data, bool isLeft) {
+  Widget _buildCompositeItem(_CompositionData data, bool isLeft, GlobalKey key) {
     bool isItemMatched = matched[data.id]!;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -289,12 +303,13 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
           ),
         ),
         const SizedBox(width: 10),
-        _buildNode(isItemMatched),
+        _buildNode(isItemMatched, key),
       ],
     );
   }
 
-  Widget _buildCompositionItem(_CompositionData data, bool isLeft) {
+  Widget _buildCompositionItem(_CompositionData data, bool isLeft, GlobalKey key) {
+
     bool isItemMatched = connections.any((c) => rightItems.indexWhere((ri) => ri.id == data.id) != -1 && c.end.dx > 200); // Simple logic to check if this right item is matched
     // Better logic:
     bool isRightMatched = matched[data.id]!;
@@ -302,7 +317,7 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildNode(isRightMatched),
+        _buildNode(isRightMatched, key),
         const SizedBox(width: 10),
         Container(
           width: 100,
@@ -328,8 +343,9 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
     );
   }
 
-  Widget _buildNode(bool isMatched) {
+  Widget _buildNode(bool isMatched, Key key) {
     return Container(
+      key: key,
       width: 15,
       height: 15,
       decoration: BoxDecoration(
@@ -426,29 +442,46 @@ class _LinePainter extends CustomPainter {
   final List<_Connection> connections;
   final Offset? activeStart;
   final Offset? activeEnd;
+  final Color? activeColor;
+  final BuildContext context;
 
-  _LinePainter({required this.connections, this.activeStart, this.activeEnd});
+  _LinePainter({required this.connections, this.activeStart, this.activeEnd, this.activeColor, required this.context});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 6.0
+      ..strokeWidth = 7.0
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
+
+    final RenderObject? renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return;
+
+    // Mapping koordinat global ke posisi CustomPaint
+    final canvasOffset = renderObject.localToGlobal(Offset.zero);
 
     // Draw permanent connections
     for (var conn in connections) {
-      paint.color = Colors.green.shade600;
-      canvas.drawLine(conn.start, conn.end, paint);
+      // Indikator Glow Hijau di bawah garis untuk efek visual sukses
+      paint.color = Colors.green.withOpacity(0.4);
+      paint.strokeWidth = 11.0;
+      canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
+      
+      // Warna asli dari objek asal
+      paint.color = conn.color; 
+      paint.strokeWidth = 7.0;
+      canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
     }
 
     // Draw active drag line
-    if (activeStart != null && activeEnd != null) {
-      paint.color = Colors.blue.withOpacity(0.6);
-      paint.strokeWidth = 4.0;
-      canvas.drawLine(activeStart!, activeEnd!, paint);
+    if (activeStart != null && activeEnd != null && activeColor != null) {
+      paint.color = activeColor!; // Warna asli dari objek asal
+      paint.strokeWidth = 7.0;
+      canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
     }
   }
 
   @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+

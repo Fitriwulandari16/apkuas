@@ -86,13 +86,18 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
     );
   }
 
+  Offset _getCenter(GlobalKey key) {
+    final RenderBox box = key.currentContext!.findRenderObject() as RenderBox;
+    final position = box.localToGlobal(Offset.zero);
+    return Offset(position.dx + box.size.width / 2, position.dy + box.size.height / 2);
+  }
+
   void _handleDragStart(Color color, Offset globalPos) {
     if (matchedColors[color]!) return;
     
-    // Find the center of the balloon
-    final RenderBox? box = startKeys[color]?.currentContext?.findRenderObject() as RenderBox?;
-    if (box != null) {
-      final position = box.localToGlobal(Offset(box.size.width / 2, box.size.height));
+    // Menggunakan fungsi _getCenter yang presisi
+    if (startKeys[color]?.currentContext != null) {
+      final position = _getCenter(startKeys[color]!);
       setState(() { 
         activeDragColor = color; 
         currentDragStart = position; 
@@ -121,9 +126,10 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
         if (renderBox != null && renderBox.hasSize) {
           final position = renderBox.localToGlobal(Offset.zero);
           final size = renderBox.size;
-          if (Rect.fromLTWH(position.dx, position.dy, size.width, size.height).contains(globalPos)) {
+          // Area hit sedikit lebih luas
+          if (Rect.fromLTWH(position.dx - 10, position.dy - 10, size.width + 20, size.height + 20).contains(globalPos)) {
             hitColor = entry.key;
-            hitCenter = renderBox.localToGlobal(Offset(size.width / 2, 0));
+            hitCenter = _getCenter(entry.value);
             break;
           }
         }
@@ -239,11 +245,11 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
 
     return Flexible(
       child: GestureDetector(
-        key: key,
         onPanStart: isStart ? (details) => _handleDragStart(color, details.globalPosition) : null,
         onPanUpdate: isStart ? (details) => _handleDragUpdate(details.globalPosition) : null,
         onPanEnd: isStart ? (details) => _handleDragEnd(details.globalPosition) : null,
         child: _AnimatedBalloon(
+          balloonKey: key,
           color: color, 
           isMatched: isMatched, 
           isStart: isStart,
@@ -254,11 +260,12 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
 }
 
 class _AnimatedBalloon extends StatefulWidget {
+  final GlobalKey balloonKey;
   final Color color;
   final bool isMatched;
   final bool isStart;
 
-  const _AnimatedBalloon({required this.color, required this.isMatched, required this.isStart});
+  const _AnimatedBalloon({required this.balloonKey, required this.color, required this.isMatched, required this.isStart});
 
   @override
   State<_AnimatedBalloon> createState() => _AnimatedBalloonState();
@@ -292,15 +299,16 @@ class _AnimatedBalloonState extends State<_AnimatedBalloon> with SingleTickerPro
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!widget.isStart) Container(width: 3, height: 20, color: Colors.grey.shade400),
+              // Garis abu-abu dihapus sesuai instruksi
               Container(
+                key: widget.balloonKey, // Key diletakkan tepat di kontainer balon
                 width: 60,
                 height: 75,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      widget.color.withOpacity(0.7),
+                      Color.lerp(widget.color, Colors.white, 0.4)!, // Opacity diganti agar solid, menutupi garis
                       widget.color,
                     ],
                     center: const Alignment(-0.3, -0.3),
@@ -325,7 +333,6 @@ class _AnimatedBalloonState extends State<_AnimatedBalloon> with SingleTickerPro
                   ),
                 ),
               ),
-              if (widget.isStart) Container(width: 3, height: 20, color: Colors.grey.shade400),
             ],
           ),
         );
@@ -354,27 +361,26 @@ class _ConnectionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..strokeWidth = 4.0
+      ..strokeWidth = 8.0 // Sesuai instruksi strokeWidth = 8.0
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
     final RenderObject? renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
+    // Kurangi hasil koordinat dengan posisi global dari CustomPaint
     final canvasOffset = renderObject.localToGlobal(Offset.zero);
 
     // Draw completed connections
     for (var conn in connections) {
-      paint.color = conn.isCorrect ? Colors.green.shade400 : Colors.grey.shade300;
-      paint.strokeWidth = 5.0;
+      paint.color = conn.color; // Gunakan warna asli dari objek asal
       canvas.drawLine(conn.start - canvasOffset, conn.end - canvasOffset, paint);
     }
 
     // Draw active drag line
     if (activeStart != null && activeEnd != null && activeColor != null) {
-      paint.color = Colors.grey.shade400;
-      paint.strokeWidth = 4.0;
-      // Draw a dashed or dotted line for active drag could be nice, but simple solid for now
+      paint.color = activeColor!; // Gunakan warna solid asal
       canvas.drawLine(activeStart! - canvasOffset, activeEnd! - canvasOffset, paint);
     }
   }
