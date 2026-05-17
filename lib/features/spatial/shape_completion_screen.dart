@@ -4,9 +4,8 @@ import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
-import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 
 class ShapeCompletionScreen extends ConsumerStatefulWidget {
@@ -18,7 +17,6 @@ class ShapeCompletionScreen extends ConsumerStatefulWidget {
 }
 
 class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
-  late ConfettiController _confettiController;
   final List<String> shapeIds = ['square', 'circle', 'pentagon', 'heart'];
   late List<String> shuffledPieceIds;
   Map<String, bool> completed = {
@@ -31,14 +29,7 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     shuffledPieceIds = List.from(shapeIds)..shuffle();
-  }
-
-  @override
-  void dispose() {
-    _confettiController.dispose();
-    super.dispose();
   }
 
   void _onPieceMatched(String id) {
@@ -52,54 +43,15 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
     }
   }
 
-  void _showWinDialog() async {
+  void _showWinDialog() {
     HapticService.success();
+    ref.read(progressProvider.notifier).updateHighestLevel(12);
     
-    // Tahap 1: Perayaan Visual
-    _confettiController.play();
-
-    // Tahap 2: Delay & Sound
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-
-    // Tahap 3: Apresiasi & Level Up
-    showDialog(
+    CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        title: Text('Hebat! ✨', 
-          textAlign: TextAlign.center, 
-          style: GoogleFonts.fredoka(fontSize: 28, fontWeight: FontWeight.bold, color: CilikTheme.tealTua)
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_rounded, size: 80, color: Colors.blueAccent),
-            const SizedBox(height: 16),
-            Text('Kamu Detektif Bentuk! Semua potongan sudah terpasang.', 
-              textAlign: TextAlign.center,
-              style: GoogleFonts.fredoka(fontSize: 18),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ref.read(progressProvider.notifier).updateHighestLevel(12);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LevelTransitionScreen(nextLevelId: 12)),
-                );
-              },
-              child: const Text('Lanjut ke Level 12'),
-            ),
-          ),
-        ],
-      ),
+      nextLevelId: 12,
+      title: 'Hebat! ✨',
+      message: 'Kamu Detektif Bentuk! Semua potongan sudah terpasang.',
     );
   }
 
@@ -156,19 +108,6 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
                 
                 _buildBottomArea(),
               ],
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: math.pi / 2, // Straight down
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 50,
-                gravity: 0.2,
-                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
-              ),
             ),
           ],
         ),

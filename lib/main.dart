@@ -7,10 +7,6 @@ import 'package:apkuas/features/adventure_map_screen.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/features/awards_screen.dart';
-import 'package:apkuas/features/spatial/star_coloring_screen.dart';
-import 'package:apkuas/features/spatial/shape_completion_screen.dart';
-import 'package:apkuas/features/spatial/bee_home_screen.dart';
-import 'package:apkuas/features/matching/composition_matching_screen.dart';
 import 'package:apkuas/features/parents/parent_gate_screen.dart';
 import 'package:apkuas/features/parents/parent_dashboard_screen.dart';
 import 'package:apkuas/features/creativity/free_coloring_screen.dart';
@@ -50,10 +46,19 @@ class CilikCodeApp extends StatelessWidget {
         '/': (context) => const MainMenuScreen(),
         '/adventure_map': (context) => const AdventureMapScreen(),
         '/awards': (context) => const AwardsScreen(),
-        '/level_10': (context) => const StarColoringScreen(),
-        '/level_11': (context) => const ShapeCompletionScreen(),
-        '/level_12': (context) => const BeeHomeScreen(),
-        '/level_13': (context) => const CompositionMatchingScreen(),
+        '/level_1': (context) => LevelResolver.buildLevel(1),
+        '/level_2': (context) => LevelResolver.buildLevel(2),
+        '/level_3': (context) => LevelResolver.buildLevel(3),
+        '/level_4': (context) => LevelResolver.buildLevel(4),
+        '/level_5': (context) => LevelResolver.buildLevel(5),
+        '/level_6': (context) => LevelResolver.buildLevel(6),
+        '/level_7': (context) => LevelResolver.buildLevel(7),
+        '/level_8': (context) => LevelResolver.buildLevel(8),
+        '/level_9': (context) => LevelResolver.buildLevel(9),
+        '/level_10': (context) => LevelResolver.buildLevel(10),
+        '/level_11': (context) => LevelResolver.buildLevel(11),
+        '/level_12': (context) => LevelResolver.buildLevel(12),
+        '/level_13': (context) => LevelResolver.buildLevel(13),
         '/level_14': (context) => const Scaffold(body: Center(child: Text('Level 14 Coming Soon!'))),
         '/parent_gate': (context) => const ParentGateScreen(),
         '/parent_dashboard': (context) => const ParentDashboardScreen(),
@@ -62,6 +67,7 @@ class CilikCodeApp extends StatelessWidget {
       },
     );
   }
+
 }
 
 class MainMenuScreen extends ConsumerStatefulWidget {

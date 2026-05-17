@@ -4,9 +4,8 @@ import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
-import 'package:apkuas/core/utils/level_resolver.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:confetti/confetti.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'dart:math' as math;
 
 class StarColoringScreen extends ConsumerStatefulWidget {
@@ -18,8 +17,7 @@ class StarColoringScreen extends ConsumerStatefulWidget {
 }
 
 class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
-  late ConfettiController _confettiController;
-  
+
   // Target colors: Center is yellow, tips are mixed red and blue
   final Map<int, Color> targetColors = {
     0: Colors.yellow, // Center
@@ -47,7 +45,6 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     // Initialize user colors with white (uncolored)
     userColors = {
       0: Colors.white,
@@ -69,7 +66,7 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
     _checkCompletion();
   }
 
-  void _checkCompletion() async {
+  void _checkCompletion() {
     bool allMatched = true;
     for (int i = 0; i < 6; i++) {
       if (userColors[i] != targetColors[i]) {
@@ -82,23 +79,13 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
       setState(() => isComplete = true);
       HapticService.success();
       
-      // Tahap 1: Perayaan Visual
-      _confettiController.play();
-
-      // Tahap 2: Delay & Sound
-      await Future.delayed(const Duration(seconds: 2));
-      
-      if (!mounted) return;
-
-      // Update progress: Unlock Level 11
       ref.read(progressProvider.notifier).updateHighestLevel(11);
       
-      // Tahap 3: Apresiasi & Level Up
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LevelTransitionScreen(nextLevelId: 11),
-        ),
+      CelebrationUtils.showCelebrationAndLevelUp(
+        context: context,
+        nextLevelId: 11,
+        title: 'HEBAT!',
+        message: 'Bintangnya sangat indah!',
       );
     }
   }
@@ -184,19 +171,6 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
                 _buildPalette(),
                 const SizedBox(height: 20),
               ],
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: math.pi / 2, // Straight down
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 50,
-                gravity: 0.2,
-                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
-              ),
             ),
           ],
         ),

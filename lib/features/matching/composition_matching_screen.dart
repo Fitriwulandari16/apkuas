@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
-import 'package:apkuas/core/widgets/level_up_overlay.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 
 class CompositionMatchingScreen extends ConsumerStatefulWidget {
@@ -17,7 +16,6 @@ class CompositionMatchingScreen extends ConsumerStatefulWidget {
 }
 
 class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingScreen> {
-  late ConfettiController _confettiController;
   final List<_CompositionData> items = [
     _CompositionData(
       id: 0,
@@ -58,19 +56,11 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
   Offset? currentDragEnd;
   int? activeDragId;
 
-  bool _isComplete = false;
 
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _resetLevel();
-  }
-
-  @override
-  void dispose() {
-    _confettiController.dispose();
-    super.dispose();
   }
 
   void _resetLevel() {
@@ -78,23 +68,18 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
     rightItems = List.from(items)..shuffle();
     matched = {for (var item in items) item.id: false};
     connections = [];
-    _isComplete = false;
   }
 
-  void _onLevelComplete() async {
+  void _onLevelComplete() {
     HapticService.success();
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
     
-    // Tahap 1: Perayaan Visual
-    _confettiController.play();
-
-    // Tahap 2: Delay & Sound
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-
-    // Tahap 3: Apresiasi & Level Up
-    setState(() => _isComplete = true);
+    CelebrationUtils.showCelebrationAndLevelUp(
+      context: context,
+      nextLevelId: 14,
+      title: 'Luar Biasa!',
+      message: 'Kamu Ahli Komposisi!',
+    );
   }
 
   Offset _getItemCenter(int index, bool isLeft, Size areaSize) {
@@ -217,26 +202,6 @@ class _CompositionMatchingScreenState extends ConsumerState<CompositionMatchingS
                           );
                         }),
 
-                        if (_isComplete) 
-                          LevelUpOverlay(
-                            title: 'Luar Biasa!',
-                            message: 'Kamu Ahli Komposisi!',
-                            nextRoute: '/level_14',
-                          ),
-                        
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: ConfettiWidget(
-                            confettiController: _confettiController,
-                            blastDirection: math.pi / 2, // Straight down
-                            maxBlastForce: 5,
-                            minBlastForce: 2,
-                            emissionFrequency: 0.05,
-                            numberOfParticles: 50,
-                            gravity: 0.2,
-                            colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
-                          ),
-                        ),
                       ],
                     ),
                   );

@@ -5,10 +5,8 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
-import 'package:apkuas/core/widgets/level_up_overlay.dart';
-import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 
 class BeeHomeScreen extends ConsumerStatefulWidget {
@@ -20,7 +18,6 @@ class BeeHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
-  late ConfettiController _confettiController;
   int beeIndex = 0;
   late List<Color> hexagonColors;
   
@@ -33,17 +30,10 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     hexagonColors = List.generate(20, (_) => Colors.white);
     // Initial hint for first hexagon
     hexagonColors[0] = Colors.blue;
     _generateSPath();
-  }
-
-  @override
-  void dispose() {
-    _confettiController.dispose();
-    super.dispose();
   }
 
   void _generateSPath() {
@@ -115,32 +105,18 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
     _showLevelUpOverlay();
   }
 
-  void _showLevelUpOverlay() async {
+  void _showLevelUpOverlay() {
     HapticService.success();
     
-    // Tahap 1: Perayaan Visual
-    _confettiController.play();
-
-    // Tahap 2: Delay & Sound
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-
     // Save progress immediately
     ref.read(profileProvider.notifier).addStars(15);
     ref.read(progressProvider.notifier).updateHighestLevel(13);
 
-    // Tahap 3: Apresiasi & Level Up
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (context, _, __) => const LevelUpOverlay(
-          title: 'Hebat! Kamu Pintar!',
-          message: 'Tantangan Berikutnya: Level 13',
-          nextRoute: '/level_13',
-        ),
-      ),
+    CelebrationUtils.showCelebrationAndLevelUp(
+      context: context,
+      nextLevelId: 13,
+      title: 'Hebat! Kamu Pintar!',
+      message: 'Tantangan Berikutnya: Level 13',
     );
   }
 
@@ -252,20 +228,6 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
                 child: Center(
                   child: Text('🐝', style: TextStyle(fontSize: 45)),
                 ),
-              ),
-            ),
-            
-            Align(
-              alignment: Alignment.topCenter,
-              child: ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: math.pi / 2, // Straight down
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 50,
-                gravity: 0.2,
-                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
               ),
             ),
           ],
