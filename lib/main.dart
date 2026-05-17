@@ -214,7 +214,21 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const LevelSelectionScreen()),
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) => const LevelSelectionScreen(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      var scaleTween = Tween(begin: 0.8, end: 1.0).chain(CurveTween(curve: Curves.easeOutBack));
+                                      var fadeTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
+                                      return FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: ScaleTransition(
+                                          scale: animation.drive(scaleTween),
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    transitionDuration: const Duration(milliseconds: 500),
+                                  ),
                                 );
                               },
                             ),
