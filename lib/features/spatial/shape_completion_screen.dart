@@ -6,6 +6,7 @@ import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 
 class ShapeCompletionScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class ShapeCompletionScreen extends ConsumerStatefulWidget {
 }
 
 class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
+  late ConfettiController _confettiController;
   final List<String> shapeIds = ['square', 'circle', 'pentagon', 'heart'];
   late List<String> shuffledPieceIds;
   Map<String, bool> completed = {
@@ -29,7 +31,14 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     shuffledPieceIds = List.from(shapeIds)..shuffle();
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
   }
 
   void _onPieceMatched(String id) {
@@ -43,8 +52,18 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
     }
   }
 
-  void _showWinDialog() {
+  void _showWinDialog() async {
     HapticService.success();
+    
+    // Tahap 1: Perayaan Visual
+    _confettiController.play();
+
+    // Tahap 2: Delay & Sound
+    await Future.delayed(const Duration(seconds: 2));
+    
+    if (!mounted) return;
+
+    // Tahap 3: Apresiasi & Level Up
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -110,30 +129,47 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
             )
           ],
         ),
-        body: Column(
+        body: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Geser potongan ke bentuk yang tepat!',
-                style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                  children: shapeIds.map((id) => _buildTargetShape(id)).toList(),
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Geser potongan ke bentuk yang tepat!',
+                    style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
+                
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                      children: shapeIds.map((id) => _buildTargetShape(id)).toList(),
+                    ),
+                  ),
+                ),
+                
+                _buildBottomArea(),
+              ],
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirection: math.pi / 2, // Straight down
+                maxBlastForce: 5,
+                minBlastForce: 2,
+                emissionFrequency: 0.05,
+                numberOfParticles: 50,
+                gravity: 0.2,
+                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
               ),
             ),
-            
-            _buildBottomArea(),
           ],
         ),
       ),

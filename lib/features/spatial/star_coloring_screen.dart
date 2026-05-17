@@ -4,8 +4,9 @@ import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 
 class StarColoringScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,8 @@ class StarColoringScreen extends ConsumerStatefulWidget {
 }
 
 class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
+  late ConfettiController _confettiController;
+  
   // Target colors: Center is yellow, tips are mixed red and blue
   final Map<int, Color> targetColors = {
     0: Colors.yellow, // Center
@@ -44,6 +47,7 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     // Initialize user colors with white (uncolored)
     userColors = {
       0: Colors.white,
@@ -65,7 +69,7 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
     _checkCompletion();
   }
 
-  void _checkCompletion() {
+  void _checkCompletion() async {
     bool allMatched = true;
     for (int i = 0; i < 6; i++) {
       if (userColors[i] != targetColors[i]) {
@@ -78,10 +82,18 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
       setState(() => isComplete = true);
       HapticService.success();
       
+      // Tahap 1: Perayaan Visual
+      _confettiController.play();
+
+      // Tahap 2: Delay & Sound
+      await Future.delayed(const Duration(seconds: 2));
+      
+      if (!mounted) return;
+
       // Update progress: Unlock Level 11
       ref.read(progressProvider.notifier).updateHighestLevel(11);
       
-      // Show Level Up Transition Screen
+      // Tahap 3: Apresiasi & Level Up
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -108,67 +120,84 @@ class _StarColoringScreenState extends ConsumerState<StarColoringScreen> {
           ),
           centerTitle: true,
         ),
-        body: Column(
+        body: Stack(
           children: [
-            // Reference Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-              ),
-              child: Column(
-                children: [
-                  Text('Ikuti Warna Ini!', 
-                    style: GoogleFonts.fredoka(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)
+            Column(
+              children: [
+                // Reference Section
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: 100,
-                    height: 100,
-                    child: CustomPaint(
-                      painter: StarPartPainter(colors: targetColors),
-                    ),
+                  child: Column(
+                    children: [
+                      Text('Ikuti Warna Ini!', 
+                        style: GoogleFonts.fredoka(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: CustomPaint(
+                          painter: StarPartPainter(colors: targetColors),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            
-            // Canvas Section
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return GestureDetector(
-                          onTapUp: (details) {
-                            int? tappedPart = _getTappedPart(details.localPosition, constraints.biggest);
-                            if (tappedPart != null) {
-                              _onPartTap(tappedPart);
-                            }
+                ),
+                
+                // Canvas Section
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return GestureDetector(
+                              onTapUp: (details) {
+                                int? tappedPart = _getTappedPart(details.localPosition, constraints.biggest);
+                                if (tappedPart != null) {
+                                  _onPartTap(tappedPart);
+                                }
+                              },
+                              child: CustomPaint(
+                                size: constraints.biggest,
+                                painter: StarPartPainter(
+                                  colors: userColors,
+                                  showOutline: true,
+                                ),
+                              ),
+                            );
                           },
-                          child: CustomPaint(
-                            size: constraints.biggest,
-                            painter: StarPartPainter(
-                              colors: userColors,
-                              showOutline: true,
-                            ),
-                          ),
-                        );
-                      }
+                        ),
+                      ),
                     ),
                   ),
                 ),
+                
+                _buildPalette(),
+                const SizedBox(height: 20),
+              ],
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirection: math.pi / 2, // Straight down
+                maxBlastForce: 5,
+                minBlastForce: 2,
+                emissionFrequency: 0.05,
+                numberOfParticles: 50,
+                gravity: 0.2,
+                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
               ),
             ),
-            
-            _buildPalette(),
-            const SizedBox(height: 20),
           ],
         ),
       ),
