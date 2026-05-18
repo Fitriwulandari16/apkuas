@@ -19,6 +19,7 @@ import 'package:apkuas/features/matching/decomposition_matching_screen.dart';
 import 'package:apkuas/features/matching/shape_color_matching_screen.dart';
 import 'package:apkuas/features/matching/pattern_loop_coloring_screen.dart';
 import 'package:apkuas/features/matching/sequence_completion_screen.dart';
+import 'package:apkuas/features/matching/infinite_drag_matching_screen.dart';
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -57,6 +58,8 @@ class LevelResolver {
         return const PatternLoopColoringScreen(levelId: 16);
       case 17:
         return const SequenceCompletionScreen(levelId: 17);
+      case 18:
+        return const InfiniteDragMatchingScreen(levelId: 18);
       default:
         // Fallback or placeholder for future levels
         return Builder(
