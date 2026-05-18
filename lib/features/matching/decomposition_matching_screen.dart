@@ -288,7 +288,7 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
 
   Widget _buildInstruction() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
@@ -300,12 +300,15 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
         children: [
           const Icon(Icons.extension_rounded, color: Colors.orange, size: 24),
           const SizedBox(width: 12),
-          Text(
-            'Sentuh bentuk-bentuk yang menyusun gambar ini!',
-            style: GoogleFonts.fredoka(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue.shade800,
+          Flexible(
+            child: Text(
+              'Sentuh bentuk-bentuk yang menyusun gambar ini!',
+              style: GoogleFonts.fredoka(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade800,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
