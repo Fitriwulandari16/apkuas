@@ -15,6 +15,7 @@ import 'package:apkuas/features/spatial/star_coloring_screen.dart';
 import 'package:apkuas/features/spatial/shape_completion_screen.dart';
 import 'package:apkuas/features/spatial/bee_home_screen.dart';
 import 'package:apkuas/features/matching/composition_matching_screen.dart';
+import 'package:apkuas/features/matching/decomposition_matching_screen.dart';
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -45,6 +46,8 @@ class LevelResolver {
         return const BeeHomeScreen(levelId: 12);
       case 13:
         return const CompositionMatchingScreen(levelId: 13);
+      case 14:
+        return const DecompositionMatchingScreen(levelId: 14);
       default:
         // Fallback or placeholder for future levels
         return Builder(
