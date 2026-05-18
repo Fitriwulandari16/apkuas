@@ -146,7 +146,6 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
             _buildHeader(),
             _buildInstruction(),
             
-            // Area Atas (Target Holes)
             Expanded(
               flex: 5,
               child: Padding(
@@ -155,9 +154,9 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    childAspectRatio: 1.2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.0, // Kotak sempurna
+                    crossAxisSpacing: 24, // Jarak lebih renggang
+                    mainAxisSpacing: 24, // Jarak lebih renggang
                   ),
                   itemCount: targets.length,
                   itemBuilder: (context, index) {
@@ -170,11 +169,16 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                       builder: (context, candidateData, rejectedData) {
                         return Container(
                           decoration: BoxDecoration(
-                            color: target.color.withOpacity(isMatched ? 1.0 : 0.8),
-                            borderRadius: BorderRadius.circular(15),
+                            color: target.color,
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
+                              BoxShadow(
+                                color: target.color.withOpacity(0.3),
+                                blurRadius: isMatched ? 4 : 10,
+                                offset: const Offset(0, 4),
+                              ),
                               if (candidateData.isNotEmpty)
-                                BoxShadow(color: target.color.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)
+                                BoxShadow(color: target.color.withOpacity(0.5), blurRadius: 15, spreadRadius: 3)
                             ],
                           ),
                           child: Center(
@@ -186,15 +190,19 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                                     builder: (context, val, child) {
                                       return Transform.scale(
                                         scale: val,
-                                        child: _ShapePainterWidget(type: target.shape, color: Colors.white, size: 70),
+                                        child: _ShapePainterWidget(
+                                          type: target.shape, 
+                                          color: target.color, // Warnanya solid sesuai background agar siluet tertutup sempurna
+                                          size: 80,
+                                        ),
                                       );
                                     },
                                   )
                                 : _ShapePainterWidget(
                                     type: target.shape,
-                                    color: Colors.white.withOpacity(0.9), // Warna 'Lubang' putih
-                                    size: 70,
-                                    isDashed: true, // Berikan ilusi lubang/garis putus-putus
+                                    color: Colors.white, // Siluet putih bersih sebagai lubang
+                                    size: 80,
+                                    isDashed: true, // Garis putus-putus penanda lubang
                                   ),
                           ),
                         );
@@ -220,10 +228,10 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                 child: Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
+                  spacing: 24,
+                  runSpacing: 24,
                   alignment: WrapAlignment.center,
                   children: choices.map((choice) {
                     if (matchedIds.contains(choice.id)) {
@@ -235,18 +243,11 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                       feedback: Material(
                         color: Colors.transparent,
                         child: Transform.scale(
-                          scale: 1.1,
-                          child: Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              color: choice.color,
-                              shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 5))],
-                            ),
-                            child: Center(
-                              child: _ShapePainterWidget(type: choice.shape, color: Colors.white, size: 50),
-                            ),
+                          scale: 1.25, // Animasi membesar saat ditarik
+                          child: _ShapePainterWidget(
+                            type: choice.shape,
+                            color: choice.color.withOpacity(0.9),
+                            size: 80,
                           ),
                         ),
                       ),
@@ -269,17 +270,10 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
   Widget _buildChoiceItem(_GameItem choice) {
     return Material(
       color: Colors.transparent,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: choice.color,
-          shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
-        ),
-        child: Center(
-          child: _ShapePainterWidget(type: choice.shape, color: Colors.white, size: 45),
-        ),
+      child: _ShapePainterWidget(
+        type: choice.shape,
+        color: choice.color,
+        size: 80,
       ),
     );
   }
@@ -414,7 +408,13 @@ class _ShapePainterCore extends CustomPainter {
     if (!isDashed) {
       canvas.drawPath(path, paint);
     } else {
-      // Draw Dashed Path
+      // 1. Gambar siluet putih transparan di dalam lubang terlebih dahulu
+      final fillPaint = Paint()
+        ..color = Colors.white.withOpacity(0.35)
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(path, fillPaint);
+
+      // 2. Gambar garis putus-putus putih bersih
       final dashedPath = Path();
       const dashWidth = 8.0;
       const dashSpace = 6.0;
