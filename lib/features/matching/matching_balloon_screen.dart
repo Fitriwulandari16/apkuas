@@ -87,7 +87,9 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
   }
 
   Offset _getCenter(GlobalKey key) {
-    final RenderBox box = key.currentContext!.findRenderObject() as RenderBox;
+    if (key.currentContext == null) return Offset.zero;
+    final RenderBox? box = key.currentContext!.findRenderObject() as RenderBox?;
+    if (box == null) return Offset.zero;
     final position = box.localToGlobal(Offset.zero);
     return Offset(position.dx + box.size.width / 2, position.dy + box.size.height / 2);
   }
