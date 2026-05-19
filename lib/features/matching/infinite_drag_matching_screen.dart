@@ -32,13 +32,13 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
   late List<_CellData> _cells;
   late Map<int, AnimationController> _pulseControllers;
 
-  // Warna pembingkai presisi:
+  // Warna pembingkai presisi sesuai buku cetak asli:
   // Segitiga = Hijau
-  // Lingkaran = Biru
-  // Segi Empat = Merah
+  // Lingkaran = Hitam
+  // Segi Empat = Hitam
   static const Color colTriangle = Color(0xFF4CAF50); // Hijau
-  static const Color colCircle = Color(0xFF2196F3);   // Biru
-  static const Color colSquare = Color(0xFFF44336);   // Merah
+  static const Color colCircle = Colors.black87;      // Hitam
+  static const Color colSquare = Colors.black87;      // Hitam
 
   @override
   void initState() {
@@ -115,36 +115,52 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _buildHeader(),
-            _buildInstruction(),
-            
-            // Atas: Legenda Petunjuk Statis
-            _buildLegendCard(),
-            
-            // Tengah: Papan Utama (Grid 4x4)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    childAspectRatio: 1.0,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+            // Konten Utama Scrollable
+            SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildHeader(),
+                  _buildInstruction(),
+                  
+                  // Atas: Legenda Petunjuk Statis
+                  _buildLegendCard(),
+                  
+                  // Tengah: Papan Utama (Grid 4x4)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        childAspectRatio: 1.0,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: _cells.length,
+                      itemBuilder: (context, index) {
+                        return _buildGridCell(index);
+                      },
+                    ),
                   ),
-                  itemCount: _cells.length,
-                  itemBuilder: (context, index) {
-                    return _buildGridCell(index);
-                  },
-                ),
+                  
+                  // Jarak ekstra agar baris angka paling bawah tidak tertutup dock yang melayang
+                  const SizedBox(height: 120),
+                ],
               ),
             ),
             
-            // Bawah: Dermaga Geometri (Infinite Stock)
-            _buildGeometryDock(),
+            // Footer: Dock Geometri melayang di paling bawah
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildGeometryDock(),
+            ),
           ],
         ),
       ),
@@ -330,32 +346,25 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
 
   Widget _buildGeometryDock() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.96),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 15)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          )
+        ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Text(
-            'Tarik bingkai pembungkus ke angka yang tepat',
-            style: GoogleFonts.fredoka(
-              color: Colors.grey.shade500,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildInfiniteDraggable(ShapeType.triangle, colTriangle),
-              _buildInfiniteDraggable(ShapeType.circle, colCircle),
-              _buildInfiniteDraggable(ShapeType.square, colSquare),
-            ],
-          ),
+          _buildInfiniteDraggable(ShapeType.triangle, colTriangle),
+          _buildInfiniteDraggable(ShapeType.circle, colCircle),
+          _buildInfiniteDraggable(ShapeType.square, colSquare),
         ],
       ),
     );
@@ -367,36 +376,36 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
       feedback: Material(
         color: Colors.transparent,
         child: Transform.scale(
-          scale: 1.25,
+          scale: 1.2, // Bayangan bentuk saat digeser berukuran skala 1.2
           child: _buildDockItemContainer(type, color, isShadow: true),
         ),
       ),
-      // Child saat ditarik sama persis dengan child utama -> membuat efek Infinite stock!
-      childWhenDragging: _buildDockItemContainer(type, color),
+      childWhenDragging: _buildDockItemContainer(type, color), // child aslinya tetap diam di footer
       child: _buildDockItemContainer(type, color),
     );
   }
 
   Widget _buildDockItemContainer(ShapeType type, Color color, {bool isShadow = false}) {
     return Container(
-      width: 65,
-      height: 65,
+      width: 80, // Geometri murni yang besar dan jelas
+      height: 80,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: isShadow ? Colors.black26 : Colors.black.withOpacity(0.04),
-            blurRadius: isShadow ? 12 : 4,
+            blurRadius: isShadow ? 12 : 5,
             offset: Offset(0, isShadow ? 6 : 2),
           )
         ],
       ),
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(12.0),
           child: CustomPaint(
             painter: _GeometryFramePainter(type: type, color: color, isFilled: false),
+            size: const Size(double.infinity, double.infinity),
           ),
         ),
       ),
