@@ -144,46 +144,44 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildInstruction(),
-            
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  children: [
-                    // Tantangan A (Atas)
-                    _buildChallengeBlock(
-                      title: 'Tantangan A',
-                      isSolved: isTopSolved,
-                      gridItems: topGridItems,
-                      targetWidget: _buildTargetA(),
-                    ),
-                    
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
-                      child: Divider(thickness: 2, color: Colors.black12),
-                    ),
-
-                    // Tantangan B (Bawah)
-                    _buildChallengeBlock(
-                      title: 'Tantangan B',
-                      isSolved: isBottomSolved,
-                      gridItems: bottomGridItems,
-                      targetWidget: _buildTargetB(),
-                    ),
-                    
-                    const SizedBox(height: 30),
-
-                    // Tombol Selesai Global
-                    _buildSubmitButton(),
-                  ],
-                ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildInstruction(),
+              
+              // Tantangan A (Atas)
+              _buildChallengeBlock(
+                title: 'Tantangan A',
+                isSolved: isTopSolved,
+                gridItems: topGridItems,
+                targetWidget: _buildTargetA(),
               ),
-            ),
-          ],
+              
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
+                child: Divider(thickness: 2, color: Colors.black12),
+              ),
+
+              // Tantangan B (Bawah)
+              _buildChallengeBlock(
+                title: 'Tantangan B',
+                isSolved: isBottomSolved,
+                gridItems: bottomGridItems,
+                targetWidget: _buildTargetB(),
+              ),
+              
+              const SizedBox(height: 30),
+
+              // Tombol Selesai Global
+              _buildSubmitButton(),
+
+              // Padding bawah tambahan agar mudah discroll
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );

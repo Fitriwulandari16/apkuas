@@ -18,18 +18,14 @@ import 'package:apkuas/core/services/gallery_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Hive
   await Hive.initFlutter();
   await Hive.openBox('settings');
   await Hive.openBox('progress');
   await GalleryService.init();
 
-  runApp(
-    const ProviderScope(
-      child: CilikCodeApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: CilikCodeApp()));
 }
 
 class CilikCodeApp extends StatelessWidget {
@@ -64,7 +60,8 @@ class CilikCodeApp extends StatelessWidget {
         '/level_16': (context) => LevelResolver.buildLevel(16),
         '/level_17': (context) => LevelResolver.buildLevel(17),
         '/level_18': (context) => LevelResolver.buildLevel(18),
-        '/level_19': (context) => const Scaffold(body: Center(child: Text('Level 19 Coming Soon!'))),
+        '/level_19': (context) =>
+            const Scaffold(body: Center(child: Text('Level 19 Coming Soon!'))),
         '/parent_gate': (context) => const ParentGateScreen(),
         '/parent_dashboard': (context) => const ParentDashboardScreen(),
         '/free_coloring': (context) => const FreeColoringScreen(),
@@ -72,7 +69,6 @@ class CilikCodeApp extends StatelessWidget {
       },
     );
   }
-
 }
 
 class MainMenuScreen extends ConsumerStatefulWidget {
@@ -109,17 +105,24 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                 children: [
                   // Header
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back, color: CilikTheme.tealTua),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: CilikTheme.tealTua,
+                          ),
                           onPressed: () {},
                         ),
                         Text(
                           'CilikCode',
-                          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          style: Theme.of(context).textTheme.displayMedium
+                              ?.copyWith(
                                 color: CilikTheme.tealTua,
                                 letterSpacing: 1.2,
                               ),
@@ -151,64 +154,69 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
                       child: Column(
                         children: [
-                        Transform.rotate(
-                          angle: -0.05,
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.7,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(40),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(20),
-                            child: AspectRatio(
-                              aspectRatio: 1.2,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Image.asset(
-                                  'assets/images/rocket.png',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-
-                        // Title
-                        Text(
-                          'Belajar Coding',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                                fontSize: MediaQuery.of(context).size.width * 0.09,
-                                color: Colors.black87,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Transform.rotate(
-                          angle: -0.02,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: CilikTheme.tealTua,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Jadi Seru!',
-                              style: TextStyle(
+                          Transform.rotate(
+                            angle: -0.05,
+                            child: Container(
+                              width: MediaQuery.of(context).size.width * 0.7,
+                              decoration: BoxDecoration(
                                 color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                borderRadius: BorderRadius.circular(40),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(20),
+                              child: AspectRatio(
+                                aspectRatio: 1.2,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Image.asset(
+                                    'assets/images/rocket.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 30),
+
+                          // Title
+                          Text(
+                            'Belajar Coding',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.displayLarge
+                                ?.copyWith(
+                                  fontSize:
+                                      MediaQuery.of(context).size.width * 0.09,
+                                  color: Colors.black87,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Transform.rotate(
+                            angle: -0.02,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: CilikTheme.tealTua,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Jadi Seru!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 48),
 
                           if (_activeFilter == null) ...[
@@ -220,19 +228,44 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                                 Navigator.push(
                                   context,
                                   PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) => const LevelSelectionScreen(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      var scaleTween = Tween(begin: 0.8, end: 1.0).chain(CurveTween(curve: Curves.easeOutBack));
-                                      var fadeTween = Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut));
-                                      return FadeTransition(
-                                        opacity: animation.drive(fadeTween),
-                                        child: ScaleTransition(
-                                          scale: animation.drive(scaleTween),
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    transitionDuration: const Duration(milliseconds: 500),
+                                    pageBuilder:
+                                        (
+                                          context,
+                                          animation,
+                                          secondaryAnimation,
+                                        ) => const LevelSelectionScreen(),
+                                    transitionsBuilder:
+                                        (
+                                          context,
+                                          animation,
+                                          secondaryAnimation,
+                                          child,
+                                        ) {
+                                          var scaleTween =
+                                              Tween(begin: 0.8, end: 1.0).chain(
+                                                CurveTween(
+                                                  curve: Curves.easeOutBack,
+                                                ),
+                                              );
+                                          var fadeTween =
+                                              Tween(begin: 0.0, end: 1.0).chain(
+                                                CurveTween(
+                                                  curve: Curves.easeOut,
+                                                ),
+                                              );
+                                          return FadeTransition(
+                                            opacity: animation.drive(fadeTween),
+                                            child: ScaleTransition(
+                                              scale: animation.drive(
+                                                scaleTween,
+                                              ),
+                                              child: child,
+                                            ),
+                                          );
+                                        },
+                                    transitionDuration: const Duration(
+                                      milliseconds: 500,
+                                    ),
                                   ),
                                 );
                               },
@@ -273,7 +306,12 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                                 color: const Color(0xFFE3F2FD),
                                 iconColor: Colors.teal,
                                 isSelected: _activeFilter == 'Logika Dasar',
-                                onTap: () => setState(() => _activeFilter = _activeFilter == 'Logika Dasar' ? null : 'Logika Dasar'),
+                                onTap: () => setState(
+                                  () => _activeFilter =
+                                      _activeFilter == 'Logika Dasar'
+                                      ? null
+                                      : 'Logika Dasar',
+                                ),
                               ),
                               const SizedBox(width: 12),
                               _Badge(
@@ -282,7 +320,12 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                                 color: const Color(0xFFF3E5F5),
                                 iconColor: Colors.teal,
                                 isSelected: _activeFilter == 'Kreativitas',
-                                onTap: () => setState(() => _activeFilter = _activeFilter == 'Kreativitas' ? null : 'Kreativitas'),
+                                onTap: () => setState(
+                                  () => _activeFilter =
+                                      _activeFilter == 'Kreativitas'
+                                      ? null
+                                      : 'Kreativitas',
+                                ),
                               ),
                             ],
                           ),
@@ -355,8 +398,17 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Pilih Level', style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: () => setState(() => _activeFilter = null), child: const Text('Kembali')),
+            Text(
+              'Pilih Level',
+              style: GoogleFonts.fredoka(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _activeFilter = null),
+              child: const Text('Kembali'),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -375,17 +427,31 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(levelId)),
+                  MaterialPageRoute(
+                    builder: (context) => LevelResolver.buildLevel(levelId),
+                  ),
                 );
               },
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 5,
+                    ),
+                  ],
                 ),
                 child: Center(
-                  child: Text('$levelId', style: GoogleFonts.fredoka(fontSize: 18, fontWeight: FontWeight.bold, color: CilikTheme.tealTua)),
+                  child: Text(
+                    '$levelId',
+                    style: GoogleFonts.fredoka(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: CilikTheme.tealTua,
+                    ),
+                  ),
                 ),
               ),
             );
@@ -401,8 +467,17 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Menu Kreativitas', style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: () => setState(() => _activeFilter = null), child: const Text('Kembali')),
+            Text(
+              'Menu Kreativitas',
+              style: GoogleFonts.fredoka(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _activeFilter = null),
+              child: const Text('Kembali'),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -440,7 +515,8 @@ class _ProfilePopupContent extends ConsumerStatefulWidget {
   const _ProfilePopupContent();
 
   @override
-  ConsumerState<_ProfilePopupContent> createState() => _ProfilePopupContentState();
+  ConsumerState<_ProfilePopupContent> createState() =>
+      _ProfilePopupContentState();
 }
 
 class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
@@ -478,7 +554,10 @@ class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: const Color(0xFFE0F2F1),
-                  child: Text(profile.avatarIcon, style: const TextStyle(fontSize: 45)),
+                  child: Text(
+                    profile.avatarIcon,
+                    style: const TextStyle(fontSize: 45),
+                  ),
                 ),
                 const SizedBox(width: 20),
                 Column(
@@ -486,16 +565,28 @@ class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
                   children: [
                     Text(
                       profile.name,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.stars_rounded, color: Colors.orange, size: 20),
+                        const Icon(
+                          Icons.stars_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${profile.totalStars} Bintang',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 16),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -508,7 +599,11 @@ class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Pilih Avatar Kamu:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueGrey,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -532,13 +627,15 @@ class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       if (isUpdating) return;
-                      
+
                       setState(() => isUpdating = true);
                       print('DEBUG: Memilih Avatar ${avatar['name']}');
-                      
+
                       // Update the global state
-                      ref.read(profileProvider.notifier).updateAvatar(avatar['emoji']!);
-                      
+                      ref
+                          .read(profileProvider.notifier)
+                          .updateAvatar(avatar['emoji']!);
+
                       // Auto-close after selection with brief visual confirmation
                       Future.delayed(const Duration(milliseconds: 250), () {
                         if (mounted) {
@@ -549,15 +646,22 @@ class _ProfilePopupContentState extends ConsumerState<_ProfilePopupContent> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF00695C).withOpacity(0.1) : Colors.grey.shade50,
+                        color: isSelected
+                            ? const Color(0xFF00695C).withOpacity(0.1)
+                            : Colors.grey.shade50,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF00695C) : Colors.transparent,
+                          color: isSelected
+                              ? const Color(0xFF00695C)
+                              : Colors.transparent,
                           width: 4,
                         ),
                       ),
                       child: Center(
-                        child: Text(avatar['emoji']!, style: const TextStyle(fontSize: 40)),
+                        child: Text(
+                          avatar['emoji']!,
+                          style: const TextStyle(fontSize: 40),
+                        ),
                       ),
                     ),
                   );
@@ -609,7 +713,9 @@ class _StylizedButton extends StatelessWidget {
           backgroundColor: color,
           foregroundColor: textColor,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          side: color == Colors.white ? BorderSide(color: Colors.grey.shade300, width: 2) : null,
+          side: color == Colors.white
+              ? BorderSide(color: Colors.grey.shade300, width: 2)
+              : null,
         ),
         child: Row(
           children: [
@@ -632,10 +738,10 @@ class _StylizedButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
             ),
           ],
@@ -714,7 +820,9 @@ class _NavItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? CilikTheme.mintGreen.withOpacity(0.4) : Colors.transparent,
+          color: isSelected
+              ? CilikTheme.mintGreen.withOpacity(0.4)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
         ),
         child: Column(

@@ -137,24 +137,26 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildInstruction(),
-            
-            // Legenda Petunjuk Atas
-            _buildLegendCard(),
-            
-            // Area Bermain: Grid 5x5
-            Expanded(
-              child: Padding(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildInstruction(),
+              
+              // Legenda Petunjuk Atas
+              _buildLegendCard(),
+              
+              // Area Bermain: Grid 5x5
+              Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
                 child: GridView.builder(
+                  shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 5,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
                     childAspectRatio: 1.0,
                   ),
                   itemCount: _cells.length,
@@ -163,11 +165,14 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
                   },
                 ),
               ),
-            ),
-            
-            // Dermaga Geometri Bawah (Infinite)
-            _buildGeometryDock(),
-          ],
+              
+              // Dermaga Geometri Bawah (Infinite)
+              _buildGeometryDock(),
+
+              // Padding bawah tambahan agar mudah discroll
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );

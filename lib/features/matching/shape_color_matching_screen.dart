@@ -141,22 +141,23 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildInstruction(),
-            
-            Expanded(
-              flex: 5,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildInstruction(),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                 child: GridView.builder(
+                  shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     childAspectRatio: 1.0, // Kotak sempurna
-                    crossAxisSpacing: 24, // Jarak lebih renggang
-                    mainAxisSpacing: 24, // Jarak lebih renggang
+                    crossAxisSpacing: 20, // Jarak renggang yang pas
+                    mainAxisSpacing: 20,
                   ),
                   itemCount: targets.length,
                   itemBuilder: (context, index) {
@@ -193,7 +194,7 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                                         child: _ShapePainterWidget(
                                           type: target.shape, 
                                           color: target.color, // Warnanya solid sesuai background agar siluet tertutup sempurna
-                                          size: 80,
+                                          size: 60,
                                         ),
                                       );
                                     },
@@ -201,7 +202,7 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                                 : _ShapePainterWidget(
                                     type: target.shape,
                                     color: Colors.white, // Siluet putih bersih sebagai lubang
-                                    size: 80,
+                                    size: 60,
                                     isDashed: true, // Garis putus-putus penanda lubang
                                   ),
                           ),
@@ -211,31 +212,28 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                   },
                 ),
               ),
-            ),
-            
-            // Pembatas
-            Container(
-              height: 4,
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+              
+              // Pembatas
+              Container(
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Area Bawah (Choices)
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              const SizedBox(height: 12),
+              
+              // Area Bawah (Choices)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                 child: Wrap(
-                  spacing: 24,
-                  runSpacing: 24,
+                  spacing: 20,
+                  runSpacing: 20,
                   alignment: WrapAlignment.center,
                   children: choices.map((choice) {
                     if (matchedIds.contains(choice.id)) {
-                      return const SizedBox(width: 80, height: 80); // Kosongkan tempat
+                      return const SizedBox(width: 65, height: 65); // Kosongkan tempat
                     }
                     
                     return Draggable<_GameItem>(
@@ -243,11 +241,11 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                       feedback: Material(
                         color: Colors.transparent,
                         child: Transform.scale(
-                          scale: 1.25, // Animasi membesar saat ditarik
+                          scale: 1.2, // Animasi membesar saat ditarik
                           child: _ShapePainterWidget(
                             type: choice.shape,
                             color: choice.color.withOpacity(0.9),
-                            size: 80,
+                            size: 65,
                           ),
                         ),
                       ),
@@ -260,8 +258,11 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                   }).toList(),
                 ),
               ),
-            ),
-          ],
+
+              // Padding bawah tambahan agar mudah discroll
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );
