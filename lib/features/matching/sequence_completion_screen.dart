@@ -17,33 +17,41 @@ class SequenceCompletionScreen extends ConsumerStatefulWidget {
 
 enum ShapeType { triangle, circle, square }
 
-class _RowSequence {
-  final String title;
-  final List<ShapeType?> sequence; // null mewakili slot KOSONG
-  final ShapeType correctType;     // Jawaban yang benar untuk slot KOSONG
-  int? emptyIndex;
-  bool isCorrect;
-  ShapeType? userPlacedType;
+enum CandyType {
+  purple,        // Target: Segitiga
+  red,           // Target: Lingkaran
+  green,         // Target: Kotak/Segi Empat
+  cupcake,       // Pengecoh
+  iceCreamCone,  // Pengecoh
+  iceCreamStick, // Pengecoh
+  lollipop,      // Pengecoh
+  cakeSlice,     // Pengecoh
+  pinkCake,      // Pengecoh
+  chocolateCake, // Pengecoh
+  rollCake,      // Pengecoh
+  domeCookie     // Pengecoh
+}
 
-  _RowSequence({
-    required this.title,
-    required List<ShapeType?> seq,
-    required this.correctType,
-  })  : sequence = List.from(seq),
-        isCorrect = false {
-    emptyIndex = sequence.indexOf(null);
-  }
+class _GridCell {
+  final CandyType type;
+  final ShapeType? requiredShape;
+  bool isMatched;
+
+  _GridCell({required this.type})
+      : requiredShape = type == CandyType.purple
+            ? ShapeType.triangle
+            : (type == CandyType.red
+                ? ShapeType.circle
+                : (type == CandyType.green ? ShapeType.square : null)),
+        isMatched = false;
 }
 
 class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScreen> with TickerProviderStateMixin {
-  late List<_RowSequence> _rows;
-  late List<ShapeType> _dockItems;
+  late List<_GridCell> _cells;
   late Map<int, AnimationController> _pulseControllers;
 
-  // Warna presisi sesuai spesifikasi:
-  // 1 = Segitiga (Hijau)
-  // 2 = Lingkaran (Biru)
-  // 3 = Segi Empat (Merah)
+  // Warna garis pembingkai geometri:
+  // Segitiga = Hijau/Ungu sesuai legenda permen
   static const Color colTriangle = Color(0xFF4CAF50); // Hijau
   static const Color colCircle = Color(0xFF2196F3);   // Biru
   static const Color colSquare = Color(0xFFF44336);   // Merah
@@ -55,36 +63,24 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
   }
 
   void _initLevel() {
-    _rows = [
-      // Baris 1 (Pola 1-2-1-2): Segitiga - Lingkaran - Segitiga - [KOSONG] - Segitiga (Jawaban: Lingkaran)
-      _RowSequence(
-        title: 'Pola ABAB (1-2-1-2)',
-        seq: [ShapeType.triangle, ShapeType.circle, ShapeType.triangle, null, ShapeType.triangle],
-        correctType: ShapeType.circle,
-      ),
-      // Baris 2 (Pola 1-1-3-3): Segitiga - Segitiga - Segi Empat - [KOSONG] - Segi Empat (Jawaban: Segi Empat)
-      _RowSequence(
-        title: 'Pola AABB (1-1-3-3)',
-        seq: [ShapeType.triangle, ShapeType.triangle, ShapeType.square, null, ShapeType.square],
-        correctType: ShapeType.square,
-      ),
-      // Baris 3 (Pola 1-2-3): Segitiga - Lingkaran - Segi Empat - Segitiga - [KOSONG] - Segi Empat (Jawaban: Lingkaran)
-      _RowSequence(
-        title: 'Pola Berulang (1-2-3)',
-        seq: [ShapeType.triangle, ShapeType.circle, ShapeType.square, ShapeType.triangle, null, ShapeType.square],
-        correctType: ShapeType.circle,
-      ),
+    // 5x5 Grid dari gambar buku cetak asli:
+    final layout = [
+      // Row 1
+      CandyType.green, CandyType.cupcake, CandyType.red, CandyType.iceCreamCone, CandyType.purple,
+      // Row 2
+      CandyType.cakeSlice, CandyType.green, CandyType.purple, CandyType.lollipop, CandyType.red,
+      // Row 3
+      CandyType.red, CandyType.iceCreamStick, CandyType.green, CandyType.purple, CandyType.chocolateCake,
+      // Row 4
+      CandyType.green, CandyType.pinkCake, CandyType.red, CandyType.domeCookie, CandyType.purple,
+      // Row 5
+      CandyType.iceCreamCone, CandyType.purple, CandyType.rollCake, CandyType.red, CandyType.green,
     ];
 
-    // Pilihan jawaban di bawah: tepat 1 Segitiga, 1 Lingkaran, 1 Segi Empat (diacak agar menarik)
-    _dockItems = [
-      ShapeType.triangle,
-      ShapeType.circle,
-      ShapeType.square,
-    ]..shuffle();
+    _cells = layout.map((type) => _GridCell(type: type)).toList();
 
     _pulseControllers = {};
-    for (int i = 0; i < _rows.length; i++) {
+    for (int i = 0; i < _cells.length; i++) {
       _pulseControllers[i] = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 500),
@@ -100,30 +96,28 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
     super.dispose();
   }
 
-  void _handleDrop(ShapeType draggedType, int rowIndex) {
-    final row = _rows[rowIndex];
-    if (row.isCorrect) return;
+  void _handleDrop(ShapeType draggedShape, int index) {
+    final cell = _cells[index];
+    if (cell.isMatched) return;
 
-    if (draggedType == row.correctType) {
+    if (cell.requiredShape == draggedShape) {
       HapticService.success();
-      // Play pop/ting sound
-      
       setState(() {
-        row.isCorrect = true;
-        row.userPlacedType = draggedType;
+        cell.isMatched = true;
       });
 
-      _pulseControllers[rowIndex]!.forward().then((_) {
-        _pulseControllers[rowIndex]!.reverse();
+      _pulseControllers[index]!.forward().then((_) {
+        _pulseControllers[index]!.reverse();
       });
 
-      // Cek kemenangan total
-      if (_rows.every((r) => r.isCorrect)) {
+      // Cek kemenangan
+      final targets = _cells.where((c) => c.requiredShape != null);
+      if (targets.every((c) => c.isMatched)) {
         _onLevelComplete();
       }
     } else {
       HapticService.failure();
-      // Menarik ke tempat salah otomatis mengembalikan ke dock (dikelola oleh Flutter Draggable)
+      // Mental balik diurus otomatis oleh Draggable
     }
   }
 
@@ -133,36 +127,46 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
       nextLevelId: 18,
-      title: 'Hebat Pola Terpecahkan!',
-      message: 'Wah, kamu hebat mengenali pola!',
+      title: 'Hore! Kamu Pintar!',
+      message: 'Kamu berhasil mengelompokkan semua permen dengan bingkai yang benar!',
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF9FBF9),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(),
             _buildInstruction(),
             
-            // Baris Tantangan
+            // Legenda Petunjuk Atas
+            _buildLegendCard(),
+            
+            // Area Bermain: Grid 5x5
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(_rows.length, (index) {
-                    return _buildChallengeRow(index);
-                  }),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: _cells.length,
+                  itemBuilder: (context, index) {
+                    return _buildGridCell(index);
+                  },
                 ),
               ),
             ),
             
-            // Dermaga Jawaban (Dock)
-            _buildAnswerDock(),
+            // Dermaga Geometri Bawah (Infinite)
+            _buildGeometryDock(),
           ],
         ),
       ),
@@ -171,7 +175,7 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
           IconButton(
@@ -197,25 +201,25 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
 
   Widget _buildInstruction() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.extension_rounded, color: Colors.amber, size: 24),
-          const SizedBox(width: 12),
+          const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
-              'Perhatikan urutannya, lalu tarik gambar yang hilang ke kotaknya!',
+              'Tarik bingkai dari bawah untuk membungkus permen yang tepat!',
               style: GoogleFonts.fredoka(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.blue.shade800,
+                color: Colors.teal.shade800,
               ),
               textAlign: TextAlign.center,
             ),
@@ -225,256 +229,529 @@ class _SequenceCompletionScreenState extends ConsumerState<SequenceCompletionScr
     );
   }
 
-  Widget _buildChallengeRow(int rowIndex) {
-    final row = _rows[rowIndex];
-
+  Widget _buildLegendCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+      padding: const EdgeInsets.all(10.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(row.sequence.length, (colIndex) {
-          final item = row.sequence[colIndex];
-          
-          if (item == null) {
-            // Slot Kosong (Target)
-            return DragTarget<ShapeType>(
-              onWillAcceptWithDetails: (details) => !row.isCorrect,
-              onAcceptWithDetails: (details) => _handleDrop(details.data, rowIndex),
-              builder: (context, candidateData, rejectedData) {
-                return ScaleTransition(
-                  scale: Tween(begin: 1.0, end: 1.2).animate(
-                    CurvedAnimation(
-                      parent: _pulseControllers[rowIndex]!,
-                      curve: Curves.elasticOut,
-                    ),
-                  ),
-                  child: CustomPaint(
-                    painter: _DottedBorderPainter(
-                      color: row.isCorrect 
-                          ? Colors.green.shade400 
-                          : (candidateData.isNotEmpty ? Colors.blue.shade500 : Colors.blueGrey.shade200),
-                    ),
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: row.isCorrect ? Colors.green.shade50.withOpacity(0.5) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: row.isCorrect
-                            ? _buildShapeWidget(row.userPlacedType!)
-                            : Icon(
-                                Icons.question_mark_rounded,
-                                color: Colors.blueGrey.shade100,
-                                size: 24,
-                              ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          }
-          
-          // Slot Terisi Normal
-          return Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: _buildShapeWidget(item),
-            ),
-          );
-        }),
+        children: [
+          _buildLegendItem(ShapeType.triangle, colTriangle, CandyType.purple),
+          _buildLegendItem(ShapeType.circle, colCircle, CandyType.red),
+          _buildLegendItem(ShapeType.square, colSquare, CandyType.green),
+        ],
       ),
     );
   }
 
-  Widget _buildAnswerDock() {
+  Widget _buildLegendItem(ShapeType shape, Color color, CandyType candy) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox(
+          width: 50,
+          height: 50,
+          child: CustomPaint(
+            painter: _GeometryFramePainter(type: shape, color: color),
+          ),
+        ),
+        SizedBox(
+          width: 32,
+          height: 32,
+          child: CustomPaint(
+            painter: _CandyPainter(type: candy),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridCell(int index) {
+    final cell = _cells[index];
+
+    return DragTarget<ShapeType>(
+      onWillAcceptWithDetails: (details) => cell.requiredShape != null && !cell.isMatched,
+      onAcceptWithDetails: (details) => _handleDrop(details.data, index),
+      builder: (context, candidateData, rejectedData) {
+        return ScaleTransition(
+          scale: Tween(begin: 1.0, end: 1.2).animate(
+            CurvedAnimation(
+              parent: _pulseControllers[index]!,
+              curve: Curves.elasticOut,
+            ),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: candidateData.isNotEmpty
+                    ? Colors.teal.shade300
+                    : (cell.isMatched ? Colors.green.shade100 : Colors.grey.shade100),
+                width: cell.isMatched ? 1.0 : (candidateData.isNotEmpty ? 2.0 : 1.0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Layer Bawah: Bingkai Geometri jika sudah benar
+                if (cell.isMatched)
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: CustomPaint(
+                        painter: _GeometryFramePainter(
+                          type: cell.requiredShape!,
+                          color: cell.requiredShape == ShapeType.triangle
+                              ? colTriangle
+                              : (cell.requiredShape == ShapeType.circle ? colCircle : colSquare),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (cell.requiredShape != null)
+                  // Kotak pembantu putus-putus tipis untuk permen target yang belum dicocokkan (seperti di buku)
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: CustomPaint(
+                        painter: _DottedBorderPainter(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+
+                // Layer Atas: Permen/Pengecoh utama
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: CustomPaint(
+                    painter: _CandyPainter(type: cell.type),
+                    size: const Size(double.infinity, double.infinity),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGeometryDock() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 15)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Tarik bentuk ke kotak garis putus-putus',
+            'Stok Bingkai Tak Terbatas',
             style: GoogleFonts.fredoka(
               color: Colors.grey.shade500,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _dockItems.map((type) {
-              // Jawaban yang sudah benar tetap dipertahankan (bisa ditarik lagi atau disembunyikan? 
-              // Karena pilihan di bawah hanya ada 1x Segitiga, 1x Lingkaran, 1x Segi Empat,
-              // dan baris 1 dan baris 3 sama-sama membutuhkan Lingkaran (2), kita tidak menyembunyikannya dari dock
-              // agar anak bisa menggunakannya berkali-kali jika dibutuhkan).
-              
-              return Draggable<ShapeType>(
-                data: type,
-                feedback: Material(
-                  color: Colors.transparent,
-                  child: Transform.scale(
-                    scale: 1.2,
-                    child: _buildShapeItemContainer(type, isShadow: true),
-                  ),
-                ),
-                childWhenDragging: Opacity(
-                  opacity: 0.3,
-                  child: _buildShapeItemContainer(type),
-                ),
-                child: _buildShapeItemContainer(type),
-              );
-            }).toList(),
+            children: [
+              _buildInfiniteDraggable(ShapeType.triangle, colTriangle),
+              _buildInfiniteDraggable(ShapeType.circle, colCircle),
+              _buildInfiniteDraggable(ShapeType.square, colSquare),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildShapeItemContainer(ShapeType type, {bool isShadow = false}) {
+  Widget _buildInfiniteDraggable(ShapeType type, Color color) {
+    return Draggable<ShapeType>(
+      data: type,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Transform.scale(
+          scale: 1.2,
+          child: _buildDockItemContainer(type, color, isShadow: true),
+        ),
+      ),
+      childWhenDragging: _buildDockItemContainer(type, color),
+      child: _buildDockItemContainer(type, color),
+    );
+  }
+
+  Widget _buildDockItemContainer(ShapeType type, Color color, {bool isShadow = false}) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 55,
+      height: 55,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: isShadow ? Colors.black26 : Colors.black.withOpacity(0.04),
+            color: isShadow ? Colors.black26 : Colors.black.withOpacity(0.03),
             blurRadius: isShadow ? 10 : 4,
             offset: Offset(0, isShadow ? 5 : 2),
           )
         ],
       ),
       child: Center(
-        child: _buildShapeWidget(type),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CustomPaint(
+            painter: _GeometryFramePainter(type: type, color: color),
+            size: const Size(double.infinity, double.infinity),
+          ),
+        ),
       ),
     );
   }
-
-  Widget _buildShapeWidget(ShapeType type) {
-    switch (type) {
-      case ShapeType.triangle:
-        return SizedBox(
-          width: 50,
-          height: 50,
-          child: CustomPaint(
-            painter: _GeometricShapePainter(type: ShapeType.triangle, color: colTriangle, number: '1'),
-          ),
-        );
-      case ShapeType.circle:
-        return SizedBox(
-          width: 50,
-          height: 50,
-          child: CustomPaint(
-            painter: _GeometricShapePainter(type: ShapeType.circle, color: colCircle, number: '2'),
-          ),
-        );
-      case ShapeType.square:
-        return SizedBox(
-          width: 50,
-          height: 50,
-          child: CustomPaint(
-            painter: _GeometricShapePainter(type: ShapeType.square, color: colSquare, number: '3'),
-          ),
-        );
-    }
-  }
 }
 
-// Custom Painter Premium untuk Bentuk Geometri + Angka di dalamnya
-class _GeometricShapePainter extends CustomPainter {
+// Custom Painter untuk membingkai geometri (Segitiga, Lingkaran, Kotak)
+class _GeometryFramePainter extends CustomPainter {
   final ShapeType type;
   final Color color;
-  final String number;
 
-  _GeometricShapePainter({required this.type, required this.color, required this.number});
+  _GeometryFramePainter({required this.type, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..style = PaintingStyle.fill;
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke;
 
     final center = Offset(size.width / 2, size.height / 2);
     final path = Path();
 
     switch (type) {
       case ShapeType.triangle:
-        // Segitiga sama sisi presisi
-        path.moveTo(size.width / 2, 4);
-        path.lineTo(size.width - 4, size.height - 4);
-        path.lineTo(4, size.height - 4);
+        path.moveTo(size.width / 2, 2);
+        path.lineTo(size.width - 2, size.height - 2);
+        path.lineTo(2, size.height - 2);
         path.close();
-        canvas.drawPath(path, paint);
         break;
-        
       case ShapeType.circle:
-        // Lingkaran presisi
-        canvas.drawCircle(center, size.width / 2 - 4, paint);
-        break;
-        
+        canvas.drawCircle(center, size.width / 2 - 2, paint);
+        return;
       case ShapeType.square:
-        // Segi empat (Rounded Rect agar ramah anak)
-        final rect = Rect.fromLTWH(4, 4, size.width - 8, size.height - 8);
-        canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(8)), paint);
-        break;
+        final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)), paint);
+        return;
     }
-
-    // Menggambar Angka tebal putih di tengah bentuk
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: number,
-        style: GoogleFonts.fredoka(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    
-    textPainter.layout();
-    // Khusus segitiga, posisinya sedikit lebih ke bawah agar pas secara optik
-    final verticalOffset = (type == ShapeType.triangle) ? 4.0 : 0.0;
-    textPainter.paint(
-      canvas,
-      Offset(
-        center.dx - textPainter.width / 2,
-        center.dy - textPainter.height / 2 + verticalOffset,
-      ),
-    );
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Painter Khusus untuk Dotted / Dashed Border Slot Target
+// Custom Painter untuk Menggambar Permen dan Pengecoh Kustom
+class _CandyPainter extends CustomPainter {
+  final CandyType type;
+
+  _CandyPainter({required this.type});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+    
+    switch (type) {
+      case CandyType.purple:
+        // Permen Ungu (Segitiga)
+        final bodyPaint = Paint()..color = Colors.purple..style = PaintingStyle.fill;
+        final wingPaint = Paint()..color = Colors.purple.shade700..style = PaintingStyle.fill;
+        
+        // Wings (Atas & Bawah)
+        final topWing = Path()
+          ..moveTo(w / 2, h * 0.25)
+          ..lineTo(w * 0.3, h * 0.05)
+          ..lineTo(w * 0.7, h * 0.05)
+          ..close();
+        final bottomWing = Path()
+          ..moveTo(w / 2, h * 0.75)
+          ..lineTo(w * 0.3, h * 0.95)
+          ..lineTo(w * 0.7, h * 0.95)
+          ..close();
+        canvas.drawPath(topWing, wingPaint);
+        canvas.drawPath(bottomWing, wingPaint);
+
+        // Body (Capsule)
+        final rect = Rect.fromLTRB(w * 0.35, h * 0.2, w * 0.65, h * 0.8);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(w * 0.15)), bodyPaint);
+        
+        // Detail garis putih vertikal
+        final linePaint = Paint()..color = Colors.white24..strokeWidth = 2;
+        canvas.drawLine(Offset(w * 0.45, h * 0.3), Offset(w * 0.45, h * 0.7), linePaint);
+        canvas.drawLine(Offset(w * 0.55, h * 0.3), Offset(w * 0.55, h * 0.7), linePaint);
+        break;
+
+      case CandyType.red:
+        // Permen Merah Polkadot (Lingkaran)
+        final bodyPaint = Paint()..color = const Color(0xFFE53935)..style = PaintingStyle.fill;
+        final wingPaint = Paint()..color = const Color(0xFFC62828)..style = PaintingStyle.fill;
+
+        // Wings (Kiri & Kanan agak serong)
+        final leftWing = Path()
+          ..moveTo(w * 0.35, h / 2)
+          ..lineTo(w * 0.08, h * 0.3)
+          ..lineTo(w * 0.08, h * 0.7)
+          ..close();
+        final rightWing = Path()
+          ..moveTo(w * 0.65, h / 2)
+          ..lineTo(w * 0.92, h * 0.3)
+          ..lineTo(w * 0.92, h * 0.7)
+          ..close();
+        canvas.drawPath(leftWing, wingPaint);
+        canvas.drawPath(rightWing, wingPaint);
+
+        // Body (Circle)
+        canvas.drawCircle(center, w * 0.26, bodyPaint);
+
+        // Polkadot putih
+        final dotPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(w * 0.42, h * 0.42), w * 0.05, dotPaint);
+        canvas.drawCircle(Offset(w * 0.58, h * 0.45), w * 0.04, dotPaint);
+        canvas.drawCircle(Offset(w * 0.48, h * 0.58), w * 0.05, dotPaint);
+        break;
+
+      case CandyType.green:
+        // Permen Hijau Striped / Pita (Square)
+        final bodyPaint = Paint()..color = const Color(0xFF8BC34A)..style = PaintingStyle.fill;
+        final wingPaint = Paint()..color = const Color(0xFFFFEB3B)..style = PaintingStyle.fill; // Bows Kuning
+
+        // Yellow Bows (Kiri & Kanan)
+        final leftBow = Path()
+          ..moveTo(w * 0.3, h / 2)
+          ..lineTo(w * 0.1, h * 0.25)
+          ..lineTo(w * 0.1, h * 0.75)
+          ..close();
+        final rightBow = Path()
+          ..moveTo(w * 0.7, h / 2)
+          ..lineTo(w * 0.9, h * 0.25)
+          ..lineTo(w * 0.9, h * 0.75)
+          ..close();
+        canvas.drawPath(leftBow, wingPaint);
+        canvas.drawPath(rightBow, wingPaint);
+
+        // Body (Oval Hijau)
+        final bodyRect = Rect.fromLTRB(w * 0.25, h * 0.3, w * 0.75, h * 0.7);
+        canvas.drawOval(bodyRect, bodyPaint);
+
+        // Yellow stripes
+        final stripePaint = Paint()
+          ..color = const Color(0xFFFFEB3B)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3;
+        canvas.drawLine(Offset(w * 0.4, h * 0.32), Offset(w * 0.4, h * 0.68), stripePaint);
+        canvas.drawLine(Offset(w * 0.5, h * 0.3), Offset(w * 0.5, h * 0.7), stripePaint);
+        canvas.drawLine(Offset(w * 0.6, h * 0.32), Offset(w * 0.6, h * 0.68), stripePaint);
+        break;
+
+      case CandyType.cupcake:
+        // Cupcake
+        final cupPaint = Paint()..color = const Color(0xFF8D6E63)..style = PaintingStyle.fill; // Liner cokelat
+        final creamPaint = Paint()..color = const Color(0xFFF8BBD0)..style = PaintingStyle.fill; // Frosting pink
+        
+        // Liner
+        final cupPath = Path()
+          ..moveTo(w * 0.3, h * 0.5)
+          ..lineTo(w * 0.7, h * 0.5)
+          ..lineTo(w * 0.65, h * 0.85)
+          ..lineTo(w * 0.35, h * 0.85)
+          ..close();
+        canvas.drawPath(cupPath, cupPaint);
+
+        // Frosting
+        canvas.drawCircle(Offset(w * 0.4, h * 0.42), w * 0.16, creamPaint);
+        canvas.drawCircle(Offset(w * 0.6, h * 0.42), w * 0.16, creamPaint);
+        canvas.drawCircle(Offset(w * 0.5, h * 0.34), w * 0.16, creamPaint);
+
+        // Cherry merah
+        final cherryPaint = Paint()..color = Colors.red..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(w * 0.5, h * 0.22), w * 0.06, cherryPaint);
+        break;
+
+      case CandyType.iceCreamCone:
+        // Es Krim Cone Pink
+        final conePaint = Paint()..color = const Color(0xFFFFCC80)..style = PaintingStyle.fill;
+        final creamPaint = Paint()..color = const Color(0xFFF48FB1)..style = PaintingStyle.fill;
+
+        // Cone
+        final conePath = Path()
+          ..moveTo(w * 0.32, h * 0.45)
+          ..lineTo(w * 0.68, h * 0.45)
+          ..lineTo(w * 0.5, h * 0.9)
+          ..close();
+        canvas.drawPath(conePath, conePaint);
+
+        // Scoop
+        canvas.drawCircle(Offset(w * 0.5, h * 0.38), w * 0.22, creamPaint);
+        break;
+
+      case CandyType.iceCreamStick:
+        // Es Cokelat Stick (Bite taken out)
+        final stickPaint = Paint()..color = const Color(0xFFFFD54F)..style = PaintingStyle.fill; // Stick kayu
+        final barPaint = Paint()..color = const Color(0xFF4E342E)..style = PaintingStyle.fill; // Cokelat bar
+
+        // Stick
+        final stickRect = Rect.fromLTWH(w * 0.45, h * 0.65, w * 0.1, h * 0.25);
+        canvas.drawRRect(RRect.fromRectAndRadius(stickRect, Radius.circular(w * 0.03)), stickPaint);
+
+        // Chocolate bar with bite
+        final barPath = Path()
+          ..moveTo(w * 0.3, h * 0.7)
+          ..lineTo(w * 0.3, h * 0.22)
+          ..quadraticBezierTo(w * 0.3, h * 0.12, w * 0.45, h * 0.12)
+          // Bite effect top right
+          ..lineTo(w * 0.62, h * 0.12)
+          ..arcToPoint(Offset(w * 0.7, h * 0.25), radius: Radius.circular(w * 0.08), clockwise: false)
+          ..lineTo(w * 0.7, h * 0.7)
+          ..close();
+        canvas.drawPath(barPath, barPaint);
+        break;
+
+      case CandyType.lollipop:
+        // Lollipop Swirl
+        final stickPaint = Paint()..color = Colors.grey.shade400..strokeWidth = 3;
+        final swirlPaint1 = Paint()..color = const Color(0xFFFF8A80)..style = PaintingStyle.fill;
+        final swirlPaint2 = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 3;
+
+        // Stick
+        canvas.drawLine(Offset(w / 2, h / 2), Offset(w / 2, h * 0.9), stickPaint);
+
+        // Outer Head
+        canvas.drawCircle(Offset(w / 2, h * 0.35), w * 0.22, swirlPaint1);
+        
+        // Swirl line
+        final path = Path()
+          ..moveTo(w / 2, h * 0.35)
+          ..relativeQuadraticBezierTo(w * 0.05, -h * 0.05, w * 0.1, 0)
+          ..relativeQuadraticBezierTo(w * 0.05, h * 0.08, -w * 0.05, h * 0.12)
+          ..relativeQuadraticBezierTo(-w * 0.15, h * 0.02, -w * 0.15, -h * 0.1)
+          ..relativeQuadraticBezierTo(0, -h * 0.15, w * 0.2, -h * 0.12);
+        canvas.drawPath(path, swirlPaint2);
+        break;
+
+      case CandyType.cakeSlice:
+        // Slice of Cake
+        final platePaint = Paint()..color = Colors.blueGrey.shade100..strokeWidth = 2..style = PaintingStyle.stroke;
+        final cakePaint = Paint()..color = const Color(0xFFD7CCC8)..style = PaintingStyle.fill;
+        final cherryPaint = Paint()..color = Colors.red..style = PaintingStyle.fill;
+
+        // Plate line
+        canvas.drawLine(Offset(w * 0.15, h * 0.78), Offset(w * 0.85, h * 0.78), platePaint);
+
+        // Cake triangle
+        final cakePath = Path()
+          ..moveTo(w * 0.2, h * 0.75)
+          ..lineTo(w * 0.8, h * 0.75)
+          ..lineTo(w * 0.5, h * 0.35)
+          ..close();
+        canvas.drawPath(cakePath, cakePaint);
+
+        // Layers lines
+        final layerPaint = Paint()..color = const Color(0xFF5D4037)..strokeWidth = 3;
+        canvas.drawLine(Offset(w * 0.3, h * 0.62), Offset(w * 0.7, h * 0.62), layerPaint);
+        canvas.drawLine(Offset(w * 0.4, h * 0.48), Offset(w * 0.6, h * 0.48), layerPaint);
+
+        // Cherry on top
+        canvas.drawCircle(Offset(w * 0.5, h * 0.26), w * 0.06, cherryPaint);
+        break;
+
+      case CandyType.pinkCake:
+        // Pink Double Layer Cake
+        final layer1 = Paint()..color = const Color(0xFFF48FB1)..style = PaintingStyle.fill;
+        final layer2 = Paint()..color = const Color(0xFFF06292)..style = PaintingStyle.fill;
+        final cream = Paint()..color = Colors.white..style = PaintingStyle.fill;
+
+        // Bottom layer
+        final bottomRect = Rect.fromLTWH(w * 0.2, h * 0.52, w * 0.6, h * 0.28);
+        canvas.drawRRect(RRect.fromRectAndRadius(bottomRect, Radius.circular(w * 0.04)), layer1);
+
+        // Top layer
+        final topRect = Rect.fromLTWH(w * 0.3, h * 0.32, w * 0.4, h * 0.22);
+        canvas.drawRRect(RRect.fromRectAndRadius(topRect, Radius.circular(w * 0.04)), layer2);
+
+        // Decorative cream dots
+        canvas.drawCircle(Offset(w * 0.38, h * 0.42), 3, cream);
+        canvas.drawCircle(Offset(w * 0.5, h * 0.42), 3, cream);
+        canvas.drawCircle(Offset(w * 0.62, h * 0.42), 3, cream);
+        break;
+
+      case CandyType.chocolateCake:
+        // Chocolate slice
+        final cakePaint = Paint()..color = const Color(0xFF3E2723)..style = PaintingStyle.fill;
+        final cherryPaint = Paint()..color = Colors.red..style = PaintingStyle.fill;
+
+        final path = Path()
+          ..moveTo(w * 0.15, h * 0.7)
+          ..lineTo(w * 0.85, h * 0.7)
+          ..lineTo(w * 0.6, h * 0.35)
+          ..lineTo(w * 0.3, h * 0.35)
+          ..close();
+        canvas.drawPath(path, cakePaint);
+
+        // Cherry
+        canvas.drawCircle(Offset(w * 0.45, h * 0.24), w * 0.06, cherryPaint);
+        break;
+
+      case CandyType.rollCake:
+        // Roll Cake
+        final rollPaint1 = Paint()..color = const Color(0xFFFFE082)..style = PaintingStyle.fill;
+        final rollPaint2 = Paint()..color = const Color(0xFFBCAAA4)..style = PaintingStyle.stroke..strokeWidth = 3;
+
+        final rect = Rect.fromLTWH(w * 0.2, h * 0.3, w * 0.6, h * 0.4);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(w * 0.08)), rollPaint1);
+
+        // Swirl detail inside
+        final swirl = Path()
+          ..moveTo(w * 0.4, h * 0.5)
+          ..arcToPoint(Offset(w * 0.6, h * 0.5), radius: Radius.circular(w * 0.1))
+          ..arcToPoint(Offset(w * 0.3, h * 0.5), radius: Radius.circular(w * 0.15), clockwise: false);
+        canvas.drawPath(swirl, rollPaint2);
+        break;
+
+      case CandyType.domeCookie:
+        // Chocolate Dome Cookie
+        final cookiePaint = Paint()..color = const Color(0xFF5D4037)..style = PaintingStyle.fill;
+        final sprinklePaint = Paint()..color = const Color(0xFFFFD54F)..style = PaintingStyle.fill;
+
+        final rect = Rect.fromLTWH(w * 0.22, h * 0.42, w * 0.56, h * 0.38);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(w * 0.15)), cookiePaint);
+
+        // Sprinkles dots
+        canvas.drawCircle(Offset(w * 0.35, h * 0.55), 2.5, sprinklePaint);
+        canvas.drawCircle(Offset(w * 0.5, h * 0.52), 2.5, sprinklePaint);
+        canvas.drawCircle(Offset(w * 0.65, h * 0.58), 2.5, sprinklePaint);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Painter Khusus untuk Dotted Border tipis (Kotak target)
 class _DottedBorderPainter extends CustomPainter {
   final Color color;
 
@@ -484,15 +761,15 @@ class _DottedBorderPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final path = Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(12)));
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    final path = Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(10)));
     final dashedPath = Path();
 
-    const dashWidth = 6.0;
-    const dashSpace = 4.0;
+    const dashWidth = 5.0;
+    const dashSpace = 3.0;
     double distance = 0.0;
 
     for (var pathMetric in path.computeMetrics()) {
@@ -510,5 +787,5 @@ class _DottedBorderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
