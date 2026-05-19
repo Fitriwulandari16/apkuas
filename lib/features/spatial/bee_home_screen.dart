@@ -125,63 +125,88 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
     return ResponsiveWrapper(
       child: Scaffold(
         backgroundColor: const Color(0xFFF5FDFB),
-        body: Stack(
-          children: [
-            // Decorative Clouds/Trees
-            Positioned(
-              top: 60,
-              left: -20,
-              child: Opacity(
-                opacity: 0.1,
-                child: Icon(Icons.cloud, size: 100, color: Colors.blue.shade200),
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              right: -20,
-              child: Opacity(
-                opacity: 0.2,
-                child: Icon(Icons.park_rounded, size: 150, color: Colors.green.shade200),
-              ),
-            ),
-
-            // Header
-            Positioned(
-              top: 40,
-              left: 20,
-              right: 20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Column(
-                    children: [
-                      Text('LEVEL 12', style: GoogleFonts.fredoka(fontSize: 16, color: Colors.orange, fontWeight: FontWeight.bold)),
-                      Text('Algoritma Pola', style: GoogleFonts.fredoka(fontSize: 22, color: CilikTheme.tealTua, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: const Icon(Icons.person, color: CilikTheme.tealTua),
-                  ),
-                ],
-              ),
-            ),
-
-            // Instructions
-            Positioned(
-              top: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Text('Warnai pola Biru ➔ Hijau untuk pulang!',
-                  style: GoogleFonts.fredoka(fontSize: 16, color: Colors.blueGrey, fontWeight: FontWeight.w500)
+        body: SafeArea(
+          top: true,
+          child: Stack(
+            children: [
+              // Decorative Clouds/Trees
+              Positioned(
+                top: 60,
+                left: -20,
+                child: Opacity(
+                  opacity: 0.1,
+                  child: Icon(Icons.cloud, size: 100, color: Colors.blue.shade200),
                 ),
               ),
-            ),
+              Positioned(
+                bottom: 40,
+                right: -20,
+                child: Opacity(
+                  opacity: 0.2,
+                  child: Icon(Icons.park_rounded, size: 150, color: Colors.green.shade200),
+                ),
+              ),
+  
+              // Header & Instruksi Terintegrasi (Lebih Rapat & Hemat Ruang)
+              Positioned(
+                top: 10,
+                left: 0,
+                right: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'LEVEL 12',
+                                style: GoogleFonts.fredoka(
+                                  fontSize: 14,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Algoritma Pola',
+                                style: GoogleFonts.fredoka(
+                                  fontSize: 20,
+                                  color: CilikTheme.tealTua,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.white,
+                            child: const Icon(Icons.person, color: CilikTheme.tealTua, size: 20),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6), // Spacing kecil penyeimbang
+                    Text(
+                      'Warnai pola Biru ➔ Hijau untuk pulang!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.fredoka(
+                        fontSize: 14,
+                        color: Colors.blueGrey.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Hexagon Path
             ...List.generate(positions.length, (index) {
@@ -233,8 +258,9 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class HexagonPainter extends CustomPainter {
