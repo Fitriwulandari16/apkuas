@@ -179,7 +179,7 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> wit
         mainAxisSpacing: 20,
         childAspectRatio: 0.85,
       ),
-      itemCount: 13,
+      itemCount: 20,
       itemBuilder: (context, index) {
         final int levelId = index + 1;
         final bool isCompleted = levelId < highestLevel;

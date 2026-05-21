@@ -20,6 +20,9 @@ import 'package:apkuas/features/matching/shape_color_matching_screen.dart';
 import 'package:apkuas/features/matching/pattern_loop_coloring_screen.dart';
 import 'package:apkuas/features/matching/sequence_completion_screen.dart';
 import 'package:apkuas/features/matching/infinite_drag_matching_screen.dart';
+import 'package:apkuas/features/matching/image_matching_legend_screen.dart';
+import 'package:apkuas/features/matching/circle_matching_size_screen.dart';
+
 
 class LevelResolver {
   static Widget buildLevel(int levelId) {
@@ -60,6 +63,11 @@ class LevelResolver {
         return const SequenceCompletionScreen(levelId: 17);
       case 18:
         return const InfiniteDragMatchingScreen(levelId: 18);
+      case 19:
+        return const ImageMatchingLegendScreen(levelId: 19);
+      case 20:
+        return const CircleMatchingSizeScreen(levelId: 20);
+
       default:
         // Fallback or placeholder for future levels
         return Builder(
