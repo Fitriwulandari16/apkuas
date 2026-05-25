@@ -5,6 +5,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class CircleMatchingSizeScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -28,9 +29,10 @@ class _CircleData {
 class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScreen> with TickerProviderStateMixin {
   late List<_CircleData> _circles;
   late Map<int, AnimationController> _pulseControllers;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Warna premium sesuai instruksi dan buku cetak:
-  // Besar = Oranye/Cokelat Hangat
+  // Premium colors corresponding to the textbook illustration:
+  // Besar = Oranye / Cokelat Hangat
   // Sedang = Biru Langit
   // Kecil = Kuning Terang
   static const Color colLargeTarget = Color(0xFFE67E22);  // Oranye/Cokelat Hangat
@@ -44,16 +46,16 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
   }
 
   void _initLevel() {
-    // 17 Lingkaran dengan 3 ukuran acak persis nuansa buku cetak:
-    // Row 1: Small, Small, Large, Small
+    // 19 circles with 3 sizes arranged exactly like the textbook illustration layout:
+    // Row 1: Small, Medium, Large, Small
     // Row 2: Large, Medium, Small, Medium
-    // Row 3: Small, Medium, Small, Large
-    // Row 4: Large, Medium, Medium, Small
-    // Row 5: Medium, Small, Large
+    // Row 3: Medium, Large, Small, Large
+    // Row 4: Small, Medium, Large, Medium
+    // Row 5: Large, Medium, Large, Small
     _circles = [
       // Row 1
       _CircleData(id: 1, size: CircleSize.small),
-      _CircleData(id: 2, size: CircleSize.small),
+      _CircleData(id: 2, size: CircleSize.medium),
       _CircleData(id: 3, size: CircleSize.large),
       _CircleData(id: 4, size: CircleSize.small),
       // Row 2
@@ -62,19 +64,20 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
       _CircleData(id: 7, size: CircleSize.small),
       _CircleData(id: 8, size: CircleSize.medium),
       // Row 3
-      _CircleData(id: 9, size: CircleSize.small),
-      _CircleData(id: 10, size: CircleSize.medium),
+      _CircleData(id: 9, size: CircleSize.medium),
+      _CircleData(id: 10, size: CircleSize.large),
       _CircleData(id: 11, size: CircleSize.small),
       _CircleData(id: 12, size: CircleSize.large),
       // Row 4
-      _CircleData(id: 13, size: CircleSize.large),
+      _CircleData(id: 13, size: CircleSize.small),
       _CircleData(id: 14, size: CircleSize.medium),
-      _CircleData(id: 15, size: CircleSize.medium),
-      _CircleData(id: 16, size: CircleSize.small),
+      _CircleData(id: 15, size: CircleSize.large),
+      _CircleData(id: 16, size: CircleSize.medium),
       // Row 5
-      _CircleData(id: 17, size: CircleSize.medium),
-      _CircleData(id: 18, size: CircleSize.small),
+      _CircleData(id: 17, size: CircleSize.large),
+      _CircleData(id: 18, size: CircleSize.medium),
       _CircleData(id: 19, size: CircleSize.large),
+      _CircleData(id: 20, size: CircleSize.small),
     ];
 
     _pulseControllers = {};
@@ -91,19 +94,36 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
     for (var controller in _pulseControllers.values) {
       controller.dispose();
     }
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _playTingSound() async {
+    try {
+      // Try playing a local sound file first
+      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
+    } catch (_) {
+      try {
+        // Fallback to online short pleasant ting/bell sound
+        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
+      } catch (e) {
+        debugPrint('Could not play ting sound: $e');
+      }
+    }
   }
 
   void _handleDrop(Color draggedColor, _CircleData circle) {
     if (circle.isColored) return;
 
-    // Validasi warna berdasarkan ukuran lingkaran
+    // Validate size and color matching
     final bool isValid = (circle.size == CircleSize.large && draggedColor == colLargeTarget) ||
                          (circle.size == CircleSize.medium && draggedColor == colMediumTarget) ||
                          (circle.size == CircleSize.small && draggedColor == colSmallTarget);
 
     if (isValid) {
       HapticService.success();
+      _playTingSound();
+
       setState(() {
         circle.isColored = true;
         circle.currentColor = draggedColor;
@@ -113,7 +133,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
         _pulseControllers[circle.id]!.reverse();
       });
 
-      // Cek kemenangan total
+      // Check if all circles are colored to win
       if (_circles.every((c) => c.isColored)) {
         _onLevelComplete();
       }
@@ -127,7 +147,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
     
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      nextLevelId: 21, // Level berikutnya
+      nextLevelId: 21,
       title: 'Luar Biasa!',
       message: 'Kamu berhasil mewarnai semua lingkaran dengan sangat rapi!',
     );
@@ -140,7 +160,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
       body: SafeArea(
         child: Stack(
           children: [
-            // Konten Utama Scrollable
+            // Scrollable main content
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
@@ -149,10 +169,10 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
                   _buildHeader(),
                   _buildInstruction(),
                   
-                  // Legenda Petunjuk Atas
+                  // Static Legend/Guide Card at the top
                   _buildLegendCard(),
                   
-                  // Area Bermain: Lingkaran-lingkaran Kosong
+                  // Play Area: Grid of empty circle outlines
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                     child: Column(
@@ -161,18 +181,18 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
                         _buildGameRow([_circles[4], _circles[5], _circles[6], _circles[7]]),
                         _buildGameRow([_circles[8], _circles[9], _circles[10], _circles[11]]),
                         _buildGameRow([_circles[12], _circles[13], _circles[14], _circles[15]]),
-                        _buildGameRow([_circles[16], _circles[17], _circles[18]]),
+                        _buildGameRow([_circles[16], _circles[17], _circles[18], _circles[19]]),
                       ],
                     ),
                   ),
 
-                  // Jarak ekstra agar tidak tertutup dock melayang
+                  // Bottom spacer so that the lowest rows aren't covered by the floating footer dock
                   const SizedBox(height: 140),
                 ],
               ),
             ),
             
-            // Footer: 3 Ember Warna melayang di paling bawah
+            // Sticky Footer: Color Dock at the bottom
             Positioned(
               bottom: 0,
               left: 0,
@@ -254,11 +274,11 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // Besar (Oranye)
-          _buildLegendCircle(80, colLargeTarget, 'Besar'),
+          _buildLegendCircle(90, colLargeTarget, 'Besar'),
           // Sedang (Biru)
-          _buildLegendCircle(55, colMediumTarget, 'Sedang'),
+          _buildLegendCircle(65, colMediumTarget, 'Sedang'),
           // Kecil (Kuning)
-          _buildLegendCircle(34, colSmallTarget, 'Kecil'),
+          _buildLegendCircle(40, colSmallTarget, 'Kecil'),
         ],
       ),
     );
@@ -306,21 +326,29 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
   }
 
   Widget _buildCircleTarget(_CircleData circle) {
+    // Exact sizing for circles: Large (100), Medium (70), Small (45)
     double diameter;
     switch (circle.size) {
       case CircleSize.large:
-        diameter = 85;
+        diameter = 100;
         break;
       case CircleSize.medium:
-        diameter = 60;
+        diameter = 70;
         break;
       case CircleSize.small:
-        diameter = 36;
+        diameter = 45;
         break;
     }
 
     return DragTarget<Color>(
-      onWillAcceptWithDetails: (details) => !circle.isColored,
+      onWillAcceptWithDetails: (details) {
+        if (circle.isColored) return false;
+        // Only accept if dropped color matches size target
+        final bool isValid = (circle.size == CircleSize.large && details.data == colLargeTarget) ||
+                             (circle.size == CircleSize.medium && details.data == colMediumTarget) ||
+                             (circle.size == CircleSize.small && details.data == colSmallTarget);
+        return isValid;
+      },
       onAcceptWithDetails: (details) => _handleDrop(details.data, circle),
       builder: (context, candidateData, rejectedData) {
         return ScaleTransition(
@@ -335,7 +363,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
             width: diameter,
             height: diameter,
             decoration: BoxDecoration(
-              color: circle.isColored ? circle.currentColor : Colors.white,
+              color: circle.isColored ? circle.currentColor : Colors.transparent,
               shape: BoxShape.circle,
               border: Border.all(
                 color: candidateData.isNotEmpty
@@ -347,7 +375,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
                 BoxShadow(
                   color: circle.isColored
                       ? circle.currentColor!.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.02),
+                      : Colors.black.withOpacity(0.01),
                   blurRadius: circle.isColored ? 8 : 4,
                   offset: const Offset(0, 2),
                 )
@@ -396,6 +424,9 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
         ),
       ),
       childWhenDragging: _buildColorBucket(color),
+      onDraggableCanceled: (velocity, offset) {
+        HapticService.failure();
+      },
       child: _buildColorBucket(color),
     );
   }
