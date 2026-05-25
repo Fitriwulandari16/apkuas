@@ -23,6 +23,7 @@ import 'package:apkuas/features/matching/infinite_drag_matching_screen.dart';
 import 'package:apkuas/features/matching/image_matching_legend_screen.dart';
 import 'package:apkuas/features/matching/circle_matching_size_screen.dart';
 import 'package:apkuas/features/matching/sequence_line_matching_screen.dart';
+import 'package:apkuas/features/matching/letter_grid_coloring_screen.dart';
 
 
 class LevelResolver {
@@ -70,6 +71,8 @@ class LevelResolver {
         return const CircleMatchingSizeScreen(levelId: 20);
       case 21:
         return const SequenceLineMatchingScreen(levelId: 21);
+      case 22:
+        return const LetterGridColoringScreen(levelId: 22);
 
       default:
         // Fallback or placeholder for future levels
