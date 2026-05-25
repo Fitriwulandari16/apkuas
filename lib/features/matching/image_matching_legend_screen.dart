@@ -5,6 +5,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class ImageMatchingLegendScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -26,10 +27,11 @@ class _BoxData {
 class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendScreen> with TickerProviderStateMixin {
   late List<_BoxData> _boxes;
   late Map<int, AnimationController> _pulseControllers;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Warna premium sesuai panduan buku cetak:
-  // Besar = Biru Ocean
-  // Kecil = Merah Coral
+  // Premium colors corresponding to the textbook illustrations:
+  // Besar = Ocean Blue
+  // Kecil = Coral Red
   static const Color colLargeTarget = Color(0xFF3EA5E1); // Biru Ocean
   static const Color colSmallTarget = Color(0xFFE76F51); // Merah Coral
 
@@ -40,13 +42,12 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
   }
 
   void _initLevel() {
-    // 15 target kotak persis tata letak buku referensi:
-    // Row 1: Large (Kiri), Small (Tengah), Small (Kanan)
-    // Row 2: Small (Kiri), Small (Tengah), Large (Kanan)
-    // Row 3: Small (Kiri), Large (Tengah), Small (Kanan)
-    // Row 4: Large (Kiri), Small (Tengah), Large (Kanan)
-    // Row 5: Small (Kiri), Large (Tengah), Small (Kanan)
-    
+    // 15 target boxes arranged exactly like the textbook illustration layout:
+    // Row 1: Large (Left), Small (Middle), Small (Right)
+    // Row 2: Small (Left), Small (Middle), Large (Right)
+    // Row 3: Small (Left), Large (Middle), Small (Right)
+    // Row 4: Large (Left), Small (Middle), Large (Right)
+    // Row 5: Small (Left), Large (Middle), Small (Right)
     _boxes = [
       // Row 1
       _BoxData(id: 1, isLarge: true),
@@ -84,20 +85,35 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
     for (var controller in _pulseControllers.values) {
       controller.dispose();
     }
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _playTingSound() async {
+    try {
+      // Try playing a local sound file first
+      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
+    } catch (_) {
+      try {
+        // Fallback to online short pleasant ting/bell sound
+        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
+      } catch (e) {
+        debugPrint('Could not play ting sound: $e');
+      }
+    }
   }
 
   void _handleDrop(Color draggedColor, _BoxData box) {
     if (box.isColored) return;
 
-    // Validasi warna berdasarkan ukuran kotak
+    // Validate size and color matching
     final bool isValid = (box.isLarge && draggedColor == colLargeTarget) ||
                          (!box.isLarge && draggedColor == colSmallTarget);
 
     if (isValid) {
       HapticService.success();
-      // Play pop/ting sound
-      
+      _playTingSound();
+
       setState(() {
         box.isColored = true;
         box.currentColor = draggedColor;
@@ -107,13 +123,12 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
         _pulseControllers[box.id]!.reverse();
       });
 
-      // Cek kemenangan total
+      // Check if all boxes are colored to win
       if (_boxes.every((b) => b.isColored)) {
         _onLevelComplete();
       }
     } else {
       HapticService.failure();
-      // Mental kembali diatur oleh Draggable
     }
   }
 
@@ -135,7 +150,7 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
       body: SafeArea(
         child: Stack(
           children: [
-            // Konten Utama Scrollable
+            // Scrollable main content
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
@@ -144,10 +159,10 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
                   _buildHeader(),
                   _buildInstruction(),
                   
-                  // Legenda Petunjuk Atas
+                  // Static Legend/Guide Card at the top
                   _buildLegendCard(),
                   
-                  // Area Bermain: Grid Kotak Kosong
+                  // Play Area: Grid of empty rectangles
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                     child: Column(
@@ -161,13 +176,13 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
                     ),
                   ),
 
-                  // Jarak ekstra agar tidak tertutup dock melayang
+                  // Bottom spacer so that the lowest rows aren't covered by the floating footer dock
                   const SizedBox(height: 140),
                 ],
               ),
             ),
             
-            // Footer: Ember Warna melayang di paling bawah
+            // Sticky Footer: Color Dock at the bottom
             Positioned(
               bottom: 0,
               left: 0,
@@ -248,12 +263,12 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Contoh Kotak Besar Biru
+          // Pre-colored Large Blue Box
           Column(
             children: [
               Container(
-                width: 100,
-                height: 55,
+                width: 120,
+                height: 70,
                 decoration: BoxDecoration(
                   color: colLargeTarget,
                   borderRadius: BorderRadius.circular(15),
@@ -274,15 +289,15 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
             ],
           ),
           
-          // Pembatas vertikal
+          // Vertical divider
           Container(width: 2, height: 60, color: Colors.grey.shade200),
 
-          // Contoh Kotak Kecil Merah
+          // Pre-colored Small Red Box
           Column(
             children: [
               Container(
-                width: 65,
-                height: 38,
+                width: 70,
+                height: 40,
                 decoration: BoxDecoration(
                   color: colSmallTarget,
                   borderRadius: BorderRadius.circular(10),
@@ -318,11 +333,18 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
   }
 
   Widget _buildBoxTarget(_BoxData box) {
-    final double targetWidth = box.isLarge ? 110 : 70;
-    final double targetHeight = box.isLarge ? 65 : 40;
+    // Large: 120x70, Small: 70x40
+    final double targetWidth = box.isLarge ? 120 : 70;
+    final double targetHeight = box.isLarge ? 70 : 40;
 
     return DragTarget<Color>(
-      onWillAcceptWithDetails: (details) => !box.isColored,
+      onWillAcceptWithDetails: (details) {
+        if (box.isColored) return false;
+        // Accept only the matching color for the corresponding size
+        final bool isValid = (box.isLarge && details.data == colLargeTarget) ||
+                             (!box.isLarge && details.data == colSmallTarget);
+        return isValid;
+      },
       onAcceptWithDetails: (details) => _handleDrop(details.data, box),
       builder: (context, candidateData, rejectedData) {
         return ScaleTransition(
@@ -337,7 +359,7 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
             width: targetWidth,
             height: targetHeight,
             decoration: BoxDecoration(
-              color: box.isColored ? box.currentColor : Colors.white,
+              color: box.isColored ? box.currentColor : Colors.transparent,
               borderRadius: BorderRadius.circular(box.isLarge ? 16 : 10),
               border: Border.all(
                 color: candidateData.isNotEmpty
@@ -349,7 +371,7 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
                 BoxShadow(
                   color: box.isColored
                       ? box.currentColor!.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.02),
+                      : Colors.black.withOpacity(0.01),
                   blurRadius: box.isColored ? 8 : 4,
                   offset: const Offset(0, 2),
                 )
@@ -397,6 +419,9 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
         ),
       ),
       childWhenDragging: _buildColorBucket(color),
+      onDraggableCanceled: (velocity, offset) {
+        HapticService.failure();
+      },
       child: _buildColorBucket(color),
     );
   }
