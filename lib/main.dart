@@ -68,6 +68,7 @@ class CilikCodeApp extends StatelessWidget {
         '/level_24': (context) => LevelResolver.buildLevel(24),
         '/level_25': (context) => LevelResolver.buildLevel(25),
         '/level_26': (context) => LevelResolver.buildLevel(26),
+        '/level_27': (context) => LevelResolver.buildLevel(27),
         '/parent_gate': (context) => const ParentGateScreen(),
         '/parent_dashboard': (context) => const ParentDashboardScreen(),
         '/free_coloring': (context) => const FreeColoringScreen(),
