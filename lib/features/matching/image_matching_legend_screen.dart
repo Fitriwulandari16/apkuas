@@ -5,7 +5,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class ImageMatchingLegendScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -27,7 +27,7 @@ class _BoxData {
 class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendScreen> with TickerProviderStateMixin {
   late List<_BoxData> _boxes;
   late Map<int, AnimationController> _pulseControllers;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
 
   // Premium colors corresponding to the textbook illustrations:
   // Besar = Ocean Blue
@@ -85,22 +85,7 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
     for (var controller in _pulseControllers.values) {
       controller.dispose();
     }
-    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _playTingSound() async {
-    try {
-      // Try playing a local sound file first
-      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
-    } catch (_) {
-      try {
-        // Fallback to online short pleasant ting/bell sound
-        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
-      } catch (e) {
-        debugPrint('Could not play ting sound: $e');
-      }
-    }
   }
 
   void _handleDrop(Color draggedColor, _BoxData box) {
@@ -112,7 +97,7 @@ class _ImageMatchingLegendScreenState extends ConsumerState<ImageMatchingLegendS
 
     if (isValid) {
       HapticService.success();
-      _playTingSound();
+      SoundService.playSuccess();
 
       setState(() {
         box.isColored = true;
