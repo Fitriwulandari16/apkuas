@@ -27,6 +27,7 @@ import 'package:apkuas/features/matching/letter_grid_coloring_screen.dart';
 import 'package:apkuas/features/matching/dice_debugging_screen.dart';
 import 'package:apkuas/features/matching/pattern_line_imitation_screen.dart';
 import 'package:apkuas/features/matching/pattern_letter_imitation_screen.dart';
+import 'package:apkuas/features/matching/pattern_shape_imitation_screen.dart';
 
 
 class LevelResolver {
@@ -82,6 +83,8 @@ class LevelResolver {
         return const PatternLineImitationScreen(levelId: 24);
       case 25:
         return const PatternLetterImitationScreen(levelId: 25);
+      case 26:
+        return const PatternShapeImitationScreen(levelId: 26);
 
       default:
         // Fallback or placeholder for future levels
