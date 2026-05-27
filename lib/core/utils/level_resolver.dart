@@ -31,6 +31,7 @@ import 'package:apkuas/features/matching/pattern_shape_imitation_screen.dart';
 import 'package:apkuas/features/matching/color_connection_matching_screen.dart';
 import 'package:apkuas/features/matching/tangled_lines_matching_screen.dart';
 import 'package:apkuas/features/matching/hexagon_conditional_lines_screen.dart';
+import 'package:apkuas/features/matching/circle_conditional_patterns_screen.dart';
 
 
 class LevelResolver {
@@ -94,6 +95,8 @@ class LevelResolver {
         return const TangledLinesMatchingScreen(levelId: 28);
       case 29:
         return const HexagonConditionalLinesScreen(levelId: 29);
+      case 30:
+        return const CircleConditionalPatternsScreen(levelId: 30);
 
       default:
         // Fallback or placeholder for future levels

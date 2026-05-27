@@ -82,7 +82,7 @@ class _PatternLetterImitationScreenState extends ConsumerState<PatternLetterImit
       LetterPatternChallenge(
         id: 2,
         color: colLightGreen,
-        title: 'Huruf N',
+        title: 'Huruf Z',
         expectedLines: [
           {0, 2}, // Atas horizontal (0-1-2)
           {2, 6}, // Diagonal miring (2-4-6)
