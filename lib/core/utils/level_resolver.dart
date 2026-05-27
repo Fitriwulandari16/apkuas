@@ -29,6 +29,7 @@ import 'package:apkuas/features/matching/pattern_line_imitation_screen.dart';
 import 'package:apkuas/features/matching/pattern_letter_imitation_screen.dart';
 import 'package:apkuas/features/matching/pattern_shape_imitation_screen.dart';
 import 'package:apkuas/features/matching/color_connection_matching_screen.dart';
+import 'package:apkuas/features/matching/tangled_lines_matching_screen.dart';
 
 
 class LevelResolver {
@@ -88,6 +89,8 @@ class LevelResolver {
         return const PatternShapeImitationScreen(levelId: 26);
       case 27:
         return const ColorConnectionMatchingScreen(levelId: 27);
+      case 28:
+        return const TangledLinesMatchingScreen(levelId: 28);
 
       default:
         // Fallback or placeholder for future levels
