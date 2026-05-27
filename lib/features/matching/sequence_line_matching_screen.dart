@@ -6,7 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class SequenceLineMatchingScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -43,7 +43,7 @@ class ChallengeBoxData {
 
 class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchingScreen> with TickerProviderStateMixin {
   late List<ChallengeBoxData> _challenges;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
 
   // Active drag state
   int? _activeChallengeId;
@@ -114,20 +114,7 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _playTingSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
-    } catch (_) {
-      try {
-        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
-      } catch (e) {
-        debugPrint('Could not play ting sound: $e');
-      }
-    }
   }
 
   void _handleDragStart(int challengeId, Offset localPos, Size boxSize) {
@@ -172,7 +159,7 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
 
     // If release is close to the target node
     if (_currentDragPosition != null && (_currentDragPosition! - nodePos).distance < 30.0) {
-      _playTingSound();
+      SoundService.playSuccess();
       HapticService.success();
 
       setState(() {

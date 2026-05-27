@@ -6,7 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class DiceDebuggingScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -37,7 +37,7 @@ class _DiceDebuggingScreenState extends ConsumerState<DiceDebuggingScreen> with 
   late List<_DiceData> _diceGrid;
   late Map<int, AnimationController> _shakeControllers;
   late Map<int, AnimationController> _crossControllers;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
   int _bugsFound = 0;
 
   // Dice color reference:
@@ -98,20 +98,7 @@ class _DiceDebuggingScreenState extends ConsumerState<DiceDebuggingScreen> with 
     for (var c in _crossControllers.values) {
       c.dispose();
     }
-    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _playTingSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
-    } catch (_) {
-      try {
-        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
-      } catch (e) {
-        debugPrint('Could not play ting sound: $e');
-      }
-    }
   }
 
   void _handleTap(_DiceData dice) {
@@ -120,7 +107,7 @@ class _DiceDebuggingScreenState extends ConsumerState<DiceDebuggingScreen> with 
     if (dice.isBug) {
       // Correct! The player found a bug
       HapticService.success();
-      _playTingSound();
+      SoundService.playSuccess();
 
       setState(() {
         dice.isCrossedOut = true;

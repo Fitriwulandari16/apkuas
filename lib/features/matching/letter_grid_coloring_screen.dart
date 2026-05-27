@@ -5,7 +5,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class LetterGridColoringScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -31,7 +31,7 @@ class _LetterBoxData {
 class _LetterGridColoringScreenState extends ConsumerState<LetterGridColoringScreen> with TickerProviderStateMixin {
   late List<_LetterBoxData> _letters;
   late Map<int, AnimationController> _pulseControllers;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
 
   // Premium colors corresponding to the textbook:
   // Target color is Yellow / Orange-yellow
@@ -82,20 +82,7 @@ class _LetterGridColoringScreenState extends ConsumerState<LetterGridColoringScr
     for (var controller in _pulseControllers.values) {
       controller.dispose();
     }
-    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _playTingSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
-    } catch (_) {
-      try {
-        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
-      } catch (e) {
-        debugPrint('Could not play ting sound: $e');
-      }
-    }
   }
 
   void _handleDrop(_LetterBoxData box, Color draggedColor) {
@@ -103,7 +90,7 @@ class _LetterGridColoringScreenState extends ConsumerState<LetterGridColoringScr
 
     if (box.isTarget && draggedColor == colTargetColor) {
       HapticService.success();
-      _playTingSound();
+      SoundService.playSuccess();
 
       setState(() {
         box.isColored = true;

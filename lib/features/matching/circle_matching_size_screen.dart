@@ -5,7 +5,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class CircleMatchingSizeScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -29,7 +29,7 @@ class _CircleData {
 class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScreen> with TickerProviderStateMixin {
   late List<_CircleData> _circles;
   late Map<int, AnimationController> _pulseControllers;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
 
   // Premium colors corresponding to the textbook illustration:
   // Besar = Oranye / Cokelat Hangat
@@ -94,22 +94,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
     for (var controller in _pulseControllers.values) {
       controller.dispose();
     }
-    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _playTingSound() async {
-    try {
-      // Try playing a local sound file first
-      await _audioPlayer.play(AssetSource('sounds/ting.mp3'));
-    } catch (_) {
-      try {
-        // Fallback to online short pleasant ting/bell sound
-        await _audioPlayer.play(UrlSource('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav'));
-      } catch (e) {
-        debugPrint('Could not play ting sound: $e');
-      }
-    }
   }
 
   void _handleDrop(Color draggedColor, _CircleData circle) {
@@ -122,7 +107,7 @@ class _CircleMatchingSizeScreenState extends ConsumerState<CircleMatchingSizeScr
 
     if (isValid) {
       HapticService.success();
-      _playTingSound();
+      SoundService.playSuccess();
 
       setState(() {
         circle.isColored = true;

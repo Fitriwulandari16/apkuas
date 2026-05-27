@@ -6,7 +6,7 @@ import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 
 class MatchingBalloonScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -28,7 +28,7 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
 
   final Map<Color, GlobalKey> startKeys = {};
   final Map<Color, GlobalKey> endKeys = {};
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
 
 
   @override
@@ -39,7 +39,6 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -70,8 +69,7 @@ class _MatchingBalloonScreenState extends ConsumerState<MatchingBalloonScreen> w
   }
 
   void _playSound(String name) async {
-    // Placeholder for sound implementation
-    // await _audioPlayer.play(AssetSource('sounds/$name.mp3'));
+    SoundService.playSuccess();
   }
 
   void _onLevelComplete() {
