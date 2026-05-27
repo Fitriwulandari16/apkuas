@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "933756546141",
+    "project_id": "cilikcode-app",
+    "storage_bucket": "cilikcode-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:933756546141:android:510e1bbdbe9f3cb622b1b4",
+        "android_client_info": {
+          "package_name": "com.example.apkuas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDO5mkpTzReUQkMMOxuzw8VFuqxhJRBdOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
