@@ -34,6 +34,7 @@ import 'package:apkuas/features/matching/hexagon_conditional_lines_screen.dart';
 import 'package:apkuas/features/matching/circle_conditional_patterns_screen.dart';
 import 'package:apkuas/features/matching/identical_matching_screen.dart';
 import 'package:apkuas/features/matching/complex_object_coloring_screen.dart';
+import 'package:apkuas/features/matching/snake_loop_coloring_screen.dart';
 
 
 class LevelResolver {
@@ -103,6 +104,8 @@ class LevelResolver {
         return const IdenticalMatchingScreen(levelId: 31);
       case 32:
         return const ComplexObjectColoringScreen(levelId: 32);
+      case 33:
+        return const SnakeLoopColoringScreen(levelId: 33);
 
       default:
         // Fallback or placeholder for future levels
