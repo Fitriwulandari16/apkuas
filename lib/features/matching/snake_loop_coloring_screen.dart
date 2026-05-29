@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/services/user_service.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SnakeSegment {
@@ -189,8 +190,13 @@ class _SnakeLoopColoringScreenState extends ConsumerState<SnakeLoopColoringScree
 
     if (!mounted) return;
 
-    // 3. Show Final Victory Dialog
-    _showFinalVictoryDialog();
+    // 3. Show Celebration and transition to Level 34
+    CelebrationUtils.showCelebrationAndLevelUp(
+      context: context,
+      nextLevelId: 34,
+      title: 'Hebat! Ular Terwarna!',
+      message: 'Kamu berhasil mengikuti pola perulangan warna ular!',
+    );
   }
 
   void _showFinalVictoryDialog() {
