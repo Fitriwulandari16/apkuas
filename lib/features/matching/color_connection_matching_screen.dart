@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ColorConnectionMatchingScreen extends ConsumerStatefulWidget {
@@ -203,13 +204,17 @@ class _ColorConnectionMatchingScreenState extends ConsumerState<ColorConnectionM
     });
   }
 
-  void _onLevelComplete() {
+  void _onLevelComplete() async {
     // Save status to local Hive progress provider (simulating Firestore user_history updates locally)
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
-    // Mock Firestore user_history collection save if needed in production
-    // FirebaseFirestore.instance.collection('user_history').doc(userId).set({ 'level_27_completed': true });
+    try {
+      await UserService.updateProgress(27);
+    } catch (e) {
+      debugPrint('Cloud progress update failed for level 27: $e');
+    }
 
+    if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
       nextLevelId: 28, // Next level placeholder

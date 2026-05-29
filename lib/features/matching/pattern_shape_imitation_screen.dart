@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class PatternShapeImitationScreen extends ConsumerStatefulWidget {
@@ -217,9 +218,16 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
     });
   }
 
-  void _onLevelComplete() {
+  void _onLevelComplete() async {
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
+    try {
+      await UserService.updateProgress(26);
+    } catch (e) {
+      debugPrint('Cloud progress update failed for level 26: $e');
+    }
+
+    if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
       nextLevelId: 27, // Fallback for next stages

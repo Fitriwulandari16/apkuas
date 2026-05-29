@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class HexagonConditionalLinesScreen extends ConsumerStatefulWidget {
@@ -171,9 +172,16 @@ class _HexagonConditionalLinesScreenState extends ConsumerState<HexagonCondition
     });
   }
 
-  void _onLevelComplete() {
+  void _onLevelComplete() async {
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
+    try {
+      await UserService.updateProgress(29);
+    } catch (e) {
+      debugPrint('Cloud progress update failed for level 29: $e');
+    }
+
+    if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
       nextLevelId: 30, // Fallback for next stages

@@ -1,12 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 enum GeomShape {
@@ -173,22 +173,18 @@ class _ComplexObjectColoringScreenState extends ConsumerState<ComplexObjectColor
     }
   }
 
-  void _onLevelComplete() {
+  void _onLevelComplete() async {
     // 1. Update local progress notifier
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
     // 2. Save progress to Firestore with try-catch block for resilience
     try {
-      FirebaseFirestore.instance.collection('user_history').doc('current_user').set({
-        'currentLevel': 32,
-        'level_32_completed': true,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, SetOptions(merge: true));
-      debugPrint('Firestore: Berhasil mengupdate progres Level 32 ke Firestore');
+      await UserService.updateProgress(32);
     } catch (e) {
-      debugPrint('Firestore Error: Gagal mengupdate progres: $e');
+      debugPrint('Cloud progress update failed for level 32: $e');
     }
 
+    if (!mounted) return;
     // 3. Trigger celebration dialog
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
