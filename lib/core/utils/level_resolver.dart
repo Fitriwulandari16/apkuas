@@ -48,6 +48,8 @@ import 'package:apkuas/features/matching/pattern_debugging_screen.dart';
 import 'package:apkuas/features/matching/chicken_pathfinding_screen.dart';
 import 'package:apkuas/features/matching/balloon_shape_coloring_screen.dart';
 import 'package:apkuas/features/matching/lion_pathfinding_screen.dart';
+import 'package:apkuas/features/matching/animal_pattern_sequence_screen.dart';
+import 'package:apkuas/features/matching/tangled_lines_maze_level47_screen.dart';
 
 
 class LevelResolver {
@@ -108,7 +110,7 @@ class LevelResolver {
       case 27:
         return const ColorConnectionMatchingScreen(levelId: 27);
       case 28:
-        return const TangledLinesMatchingScreen(levelId: 28);
+        return const AnimalPatternSequenceScreen(levelId: 28);
       case 29:
         return const HexagonConditionalLinesScreen(levelId: 29);
       case 30:
@@ -144,7 +146,7 @@ class LevelResolver {
       case 46:
         return const BalloonShapeColoringScreen(levelId: 46);
       case 47:
-        return const LionPathfindingScreen(levelId: 47);
+        return const TangledLinesMazeLevelScreen(levelId: 47);
 
       default:
         // Fallback or placeholder for future levels
