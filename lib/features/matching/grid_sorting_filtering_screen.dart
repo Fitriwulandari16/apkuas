@@ -201,7 +201,7 @@ class _GridSortingFilteringScreenState extends ConsumerState<GridSortingFilterin
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Selamat! Kamu telah menyelesaikan seluruh materi Coding Level 2 dengan hasil yang menakjubkan!',
+                      'Selamat! Kamu Hebat!',
                       style: GoogleFonts.fredoka(
                         fontSize: 16,
                         color: Colors.grey.shade700,

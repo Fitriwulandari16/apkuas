@@ -36,6 +36,7 @@ import 'package:apkuas/features/matching/identical_matching_screen.dart';
 import 'package:apkuas/features/matching/complex_object_coloring_screen.dart';
 import 'package:apkuas/features/matching/snake_loop_coloring_screen.dart';
 import 'package:apkuas/features/matching/grid_sorting_filtering_screen.dart';
+import 'package:apkuas/features/matching/abstraction_circular_grid_screen.dart';
 
 
 class LevelResolver {
@@ -109,6 +110,8 @@ class LevelResolver {
         return const SnakeLoopColoringScreen(levelId: 33);
       case 34:
         return const GridSortingFilteringScreen(levelId: 34);
+      case 35:
+        return const AbstractionCircularGridScreen(levelId: 35);
 
       default:
         // Fallback or placeholder for future levels
