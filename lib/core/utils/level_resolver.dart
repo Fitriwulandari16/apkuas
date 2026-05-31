@@ -41,6 +41,7 @@ import 'package:apkuas/features/matching/complementary_shape_matching_screen.dar
 import 'package:apkuas/features/matching/symmetry_butterfly_screen.dart';
 import 'package:apkuas/features/matching/grid_letter_coloring_screen.dart';
 import 'package:apkuas/features/matching/car_wheel_matching_screen.dart';
+import 'package:apkuas/features/matching/color_code_breaker_screen.dart';
 
 
 class LevelResolver {
@@ -124,6 +125,8 @@ class LevelResolver {
         return const GridLetterColoringScreen(levelId: 39);
       case 40:
         return const CarWheelMatchingScreen(levelId: 40);
+      case 41:
+        return const ColorCodeBreakerScreen(levelId: 41);
 
       default:
         // Fallback or placeholder for future levels
