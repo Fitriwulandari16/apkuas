@@ -46,6 +46,7 @@ import 'package:apkuas/features/matching/scatter_dice_coloring_screen.dart';
 import 'package:apkuas/features/matching/arrow_filtering_screen.dart';
 import 'package:apkuas/features/matching/pattern_debugging_screen.dart';
 import 'package:apkuas/features/matching/chicken_pathfinding_screen.dart';
+import 'package:apkuas/features/matching/balloon_shape_coloring_screen.dart';
 
 
 class LevelResolver {
@@ -139,6 +140,8 @@ class LevelResolver {
         return const PatternDebuggingScreen(levelId: 44);
       case 45:
         return const ChickenPathfindingScreen(levelId: 45);
+      case 46:
+        return const BalloonShapeColoringScreen(levelId: 46);
 
       default:
         // Fallback or placeholder for future levels
