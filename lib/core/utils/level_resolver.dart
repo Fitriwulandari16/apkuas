@@ -39,6 +39,7 @@ import 'package:apkuas/features/matching/grid_sorting_filtering_screen.dart';
 import 'package:apkuas/features/matching/abstraction_circular_grid_screen.dart';
 import 'package:apkuas/features/matching/complementary_shape_matching_screen.dart';
 import 'package:apkuas/features/matching/symmetry_butterfly_screen.dart';
+import 'package:apkuas/features/matching/grid_letter_coloring_screen.dart';
 
 
 class LevelResolver {
@@ -118,6 +119,8 @@ class LevelResolver {
         return const ComplementaryShapeMatchingScreen(levelId: 36);
       case 37:
         return const SymmetryButterflyScreen(levelId: 37);
+      case 39:
+        return const GridLetterColoringScreen(levelId: 39);
 
       default:
         // Fallback or placeholder for future levels
