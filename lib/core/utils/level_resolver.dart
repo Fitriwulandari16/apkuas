@@ -51,6 +51,7 @@ import 'package:apkuas/features/matching/lion_pathfinding_screen.dart';
 import 'package:apkuas/features/matching/animal_pattern_sequence_screen.dart';
 import 'package:apkuas/features/matching/tangled_lines_maze_level47_screen.dart';
 import 'package:apkuas/features/matching/nature_pattern_sequence_screen.dart';
+import 'package:apkuas/features/matching/dot_line_replication_screen.dart';
 
 
 class LevelResolver {
@@ -150,6 +151,8 @@ class LevelResolver {
         return const TangledLinesMazeLevelScreen(levelId: 47);
       case 48:
         return const NaturePatternSequenceScreen(levelId: 48);
+      case 49:
+        return const DotLineReplicationScreen(levelId: 49);
 
       default:
         // Fallback or placeholder for future levels

@@ -428,7 +428,7 @@ class _NaturePatternSequenceScreenState
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               itemCount: _binItems.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, _a) => const SizedBox(width: 10),
               itemBuilder: (context, i) {
                 final item = _binItems[i];
                 return Draggable<String>(
