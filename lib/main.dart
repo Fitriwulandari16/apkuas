@@ -13,6 +13,7 @@ import 'package:apkuas/features/creativity/free_coloring_screen.dart';
 import 'package:apkuas/features/creativity/gallery_screen.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:apkuas/features/matching/level_50.dart';
 
 import 'package:apkuas/core/services/gallery_service.dart';
 
@@ -91,6 +92,7 @@ class CilikCodeApp extends StatelessWidget {
         '/level_47': (context) => LevelResolver.buildLevel(47),
         '/level_48': (context) => LevelResolver.buildLevel(48),
         '/level_49': (context) => LevelResolver.buildLevel(49),
+        '/level_50': (context) => LevelResolver.buildLevel(50),
         '/parent_gate': (context) => const ParentGateScreen(),
         '/parent_dashboard': (context) => const ParentDashboardScreen(),
         '/free_coloring': (context) => const FreeColoringScreen(),
