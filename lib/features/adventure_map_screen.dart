@@ -92,8 +92,8 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                       final double width = constraints.maxWidth;
                       const double padding = 44.0;
                       final double stepX = (width - 2 * padding) / 4;
-                      const double stepY = 180.0;
-                      const double totalHeight = 10 * stepY + 300;
+                      const double stepY = 200.0;
+                      const double totalHeight = 2500.0;
 
                       // Define static ornaments list with specific coordinates
                       final List<Map<String, dynamic>> ornaments = [

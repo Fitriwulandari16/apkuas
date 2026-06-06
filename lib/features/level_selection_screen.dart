@@ -67,6 +67,8 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
+    final riverpodProgress = ref.watch(progressProvider);
+    final int currentProgress = math.max(riverpodProgress, _userServiceProgress);
     
     return ResponsiveWrapper(
       backgroundColor: const Color(0xFFF0F4F8),
@@ -163,6 +165,69 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
                             : _buildKreativitasTab(),
                       ),
               ),
+
+              // Bottom Play Bar (only visible when in Logika Dasar tab!)
+              if (_activeTab == 'Logika Dasar' && !_isLoading)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, -4),
+                      )
+                    ],
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(28),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF4CAF50),
+                          Color(0xFF81C784),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(28),
+                        onTap: () {
+                          int target = currentProgress;
+                          if (target > 50) target = 50;
+                          if (target < 1) target = 1;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LevelResolver.buildLevel(target),
+                            ),
+                          );
+                        },
+                        child: Center(
+                          child: Text(
+                            'Main Level $currentProgress',
+                            style: GoogleFonts.fredoka(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -210,8 +275,8 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
         final double width = constraints.maxWidth;
         const double padding = 44.0;
         final double stepX = (width - 2 * padding) / 4;
-        const double stepY = 180.0;
-        const double totalHeight = 10 * stepY + 300;
+        const double stepY = 200.0;
+        const double totalHeight = 2500.0;
 
         // Define static ornaments list with specific coordinates
         final List<Map<String, dynamic>> ornaments = [

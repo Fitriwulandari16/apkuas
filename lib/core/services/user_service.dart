@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class UserService {
-  static const String _boxName = 'userProgressBox';
-  static const String _levelKey = 'highestLevel';
+  static const String _boxName = 'progress';
+  static const String _levelKey = 'highestLevelReached';
 
   /// Memperbarui progres level anak secara lokal di memori HP menggunakan Hive.
   /// Data disimpan secara independen di setiap perangkat sehingga tidak akan bercampur antar-user.
