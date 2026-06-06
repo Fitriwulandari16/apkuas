@@ -1,218 +1,861 @@
+import 'dart:math' as math;
+import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
+import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:apkuas/core/utils/level_resolver.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class AdventureMapScreen extends ConsumerWidget {
+class AdventureMapScreen extends ConsumerStatefulWidget {
   const AdventureMapScreen({super.key});
 
-  // Trophy/Vase silhouette structure (top to bottom) matching reference image
-  static const List<int> rowCounts = [3, 6, 7, 8, 8, 9, 8, 7, 6, 6, 8, 9, 11];
+  @override
+  ConsumerState<AdventureMapScreen> createState() => _AdventureMapScreenState();
+}
+
+class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
+  int _userServiceProgress = 1;
+  bool _isLoading = true;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unlockedLevel = ref.watch(progressProvider);
+  void initState() {
+    super.initState();
+    _loadProgress();
+  }
 
-    // Calculate total levels and map IDs to rows
-    List<List<int>> levelRows = [];
-    int totalLevels = rowCounts.reduce((a, b) => a + b);
-    int currentId = totalLevels;
-
-    for (int count in rowCounts) {
-      List<int> row = [];
-      for (int i = 0; i < count; i++) {
-        row.add(currentId--);
+  Future<void> _loadProgress() async {
+    try {
+      final prog = await UserService.getProgress();
+      if (mounted) {
+        setState(() {
+          _userServiceProgress = prog;
+          _isLoading = false;
+        });
       }
-      levelRows.add(row.reversed.toList());
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
 
-    const Color deepBlueBg = Color(0xFF3B4B70);
-    const Color headerFooterBlue = Color(0xFF5C7BC1);
+  MapEntry<int, int> _getRowAndCol(int level) {
+    int index = level - 1;
+    int r = index ~/ 5;
+    int cTemp = index % 5;
+    int c = (r % 2 == 0) ? cTemp : (4 - cTemp);
+    return MapEntry(r, c);
+  }
+
+  Offset _getNodeCenter(int level, double width, double stepY, double padding) {
+    final entry = _getRowAndCol(level);
+    final r = entry.key;
+    final c = entry.value;
+    final double stepX = (width - 2 * padding) / 4;
+    final double x = padding + c * stepX;
+    final double y = padding + r * stepY + 80;
+    return Offset(x, y);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(profileProvider);
+    final riverpodProgress = ref.watch(progressProvider);
+    final int currentProgress = math.max(riverpodProgress, _userServiceProgress);
 
     return ResponsiveWrapper(
-      backgroundColor: deepBlueBg,
+      backgroundColor: const Color(0xFFE0F7FA),
       child: Scaffold(
-        backgroundColor: deepBlueBg,
-        appBar: AppBar(
-          backgroundColor: headerFooterBlue,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text(
-            'Adventure',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
-          ),
-          centerTitle: true,
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            // Dynamically calculate tile size based on available width
-            // 11 is the maximum number of tiles in a row
-            double horizontalPadding = 24;
-            double tileSize = (constraints.maxWidth - horizontalPadding) / 11;
-            // Cap tile size for very large screens (Desktop/Web)
-            if (tileSize > 45) tileSize = 45;
-
-            return Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      children: [
-                        // Trophy Header
-                        const Icon(Icons.emoji_events_rounded, size: 80, color: Color(0xFF26334D)),
-                        const SizedBox(height: 12),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 40),
-                          child: Text(
-                            'Take part in the Adventure\nand win the trophy.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-
-                        // Custom Level Map
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding / 2),
-                          child: Column(
-                            children: levelRows.map((row) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 0.5),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: row.map((id) {
-                                    bool isUnlocked = id <= unlockedLevel;
-                                    bool isCurrent = id == unlockedLevel;
-                                    bool isCompleted = id < unlockedLevel;
-                                    return _LevelTile(
-                                      id: id,
-                                      tileSize: tileSize,
-                                      isUnlocked: isUnlocked,
-                                      isCurrent: isCurrent,
-                                      isCompleted: isCompleted,
-                                    );
-                                  }).toList(),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
-                  ),
-                ),
-                // Bottom Button Bar
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  color: headerFooterBlue,
-                  child: SafeArea(
-                    top: false,
-                    child: InkWell(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(unlockedLevel))),
-                      child: Container(
-                        width: double.infinity,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4CAF50),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Level $unlockedLevel',
-                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFE0F7FA), // Sky blue
+                Color(0xFFFFF9C4), // Sun glow
+                Color(0xFFE8F5E9), // Gentle green
               ],
-            );
-          },
+            ),
+          ),
+          child: SafeArea(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double width = constraints.maxWidth;
+                      const double padding = 44.0;
+                      final double stepX = (width - 2 * padding) / 4;
+                      const double stepY = 180.0;
+                      const double totalHeight = 10 * stepY + 300;
+
+                      // Define static ornaments list with specific coordinates
+                      final List<Map<String, dynamic>> ornaments = [
+                        {
+                          'r': 0.5,
+                          'c': 1.0,
+                          'label': '🤖',
+                          'bgColor': Colors.blue.shade100,
+                          'angle': -0.12,
+                        },
+                        {
+                          'r': 1.5,
+                          'c': 3.0,
+                          'label': '⚙️',
+                          'bgColor': Colors.orange.shade100,
+                          'angle': 0.15,
+                        },
+                        {
+                          'r': 2.5,
+                          'c': 1.0,
+                          'label': '🔍',
+                          'bgColor': Colors.teal.shade100,
+                          'angle': -0.18,
+                        },
+                        {
+                          'r': 3.5,
+                          'c': 3.0,
+                          'label': '🚂',
+                          'bgColor': Colors.red.shade100,
+                          'angle': 0.08,
+                        },
+                        {
+                          'r': 4.5,
+                          'c': 1.0,
+                          'label': '🧱',
+                          'bgColor': Colors.purple.shade100,
+                          'angle': -0.1,
+                        },
+                        {
+                          'r': 5.5,
+                          'c': 3.0,
+                          'label': '🎮',
+                          'bgColor': Colors.indigo.shade100,
+                          'angle': 0.14,
+                        },
+                        {
+                          'r': 6.5,
+                          'c': 1.0,
+                          'label': '🎨',
+                          'bgColor': Colors.pink.shade100,
+                          'angle': -0.15,
+                        },
+                        {
+                          'r': 7.5,
+                          'c': 3.0,
+                          'label': '🚀',
+                          'bgColor': Colors.amber.shade100,
+                          'angle': 0.2,
+                        },
+                        {
+                          'r': 8.5,
+                          'c': 1.0,
+                          'label': '🧸',
+                          'bgColor': Colors.brown.shade100,
+                          'angle': -0.08,
+                        },
+                      ];
+
+                      return Column(
+                        children: [
+                          // Custom Header
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: CilikTheme.tealTua),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                                Text(
+                                  'Peta Petualangan',
+                                  style: GoogleFonts.fredoka(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: CilikTheme.tealTua,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.orange.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      )
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.star_rounded, color: Colors.orange, size: 22),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${profile.totalStars}',
+                                        style: GoogleFonts.fredoka(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.orange.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Scrolling Map
+                          Expanded(
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: SizedBox(
+                                width: width,
+                                height: totalHeight,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    // 1. Draw Snake Path
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: SnakePathPainter(
+                                          width: width,
+                                          stepY: stepY,
+                                          padding: padding,
+                                          maxReachedLevel: currentProgress,
+                                        ),
+                                      ),
+                                    ),
+
+                                    // 2. Render Ornaments
+                                    ...ornaments.map((orn) {
+                                      final double r = orn['r'];
+                                      final double c = orn['c'];
+                                      final double x = padding + c * stepX;
+                                      final double y = padding + r * stepY + 80;
+                                      return Positioned(
+                                        left: x - 27,
+                                        top: y - 27,
+                                        child: OrnamentWidget(
+                                          label: orn['label'],
+                                          bgColor: orn['bgColor'],
+                                          angle: orn['angle'],
+                                        ),
+                                      );
+                                    }),
+
+                                    // 3. Start Label near Level 1
+                                    Positioned(
+                                      left: padding - 20,
+                                      top: padding + 25,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.redAccent,
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: const [
+                                            BoxShadow(color: Colors.black12, blurRadius: 4),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Mulai',
+                                              style: GoogleFonts.fredoka(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 2),
+                                            const Icon(Icons.arrow_downward_rounded, color: Colors.white, size: 12),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    // 4. Middle Label "Semangat!"
+                                    Positioned(
+                                      left: padding + 2 * stepX - 45,
+                                      top: padding + 4.5 * stepY + 55,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber,
+                                          borderRadius: BorderRadius.circular(15),
+                                          boxShadow: const [
+                                            BoxShadow(color: Colors.black12, blurRadius: 4),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          'Semangat! 🌟',
+                                          style: GoogleFonts.fredoka(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // 5. Final Label "Selesai" near Level 50
+                                    Positioned(
+                                      left: padding,
+                                      top: padding + 9.6 * stepY + 30,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade500,
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: const [
+                                            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 28),
+                                            const SizedBox(width: 8),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  'Selesai',
+                                                  style: GoogleFonts.fredoka(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Berhasil! 🎉',
+                                                  style: GoogleFonts.fredoka(
+                                                    color: Colors.white.withOpacity(0.9),
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    // 6. Level Nodes (Level 1 to 50)
+                                    ...List.generate(50, (index) {
+                                      final int level = index + 1;
+                                      final bool isUnlocked = level <= currentProgress;
+                                      final bool isCurrent = level == currentProgress;
+                                      final offset = _getNodeCenter(level, width, stepY, padding);
+
+                                      return Position(
+                                        left: offset.dx - 35,
+                                        top: offset.dy - 35,
+                                        child: FlowerLevelNode(
+                                          level: level,
+                                          isUnlocked: isUnlocked,
+                                          isCurrent: isCurrent,
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => LevelResolver.buildLevel(level),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Bottom Play Bar
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -4),
+                                )
+                              ],
+                            ),
+                            child: SafeArea(
+                              top: false,
+                              child: Container(
+                                width: double.infinity,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF4CAF50),
+                                      Color(0xFF81C784),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.green.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(28),
+                                    onTap: () {
+                                      int target = currentProgress;
+                                      if (target > 50) target = 50;
+                                      if (target < 1) target = 1;
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LevelResolver.buildLevel(target),
+                                        ),
+                                      );
+                                    },
+                                    child: Center(
+                                      child: Text(
+                                        'Main Level $currentProgress',
+                                        style: GoogleFonts.fredoka(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _LevelTile extends StatelessWidget {
-  final int id;
-  final double tileSize;
+// Position helper alias for Positioned
+class Position extends Positioned {
+  const Position({
+    super.key,
+    super.left,
+    super.top,
+    super.right,
+    super.bottom,
+    super.width,
+    super.height,
+    required super.child,
+  });
+}
+
+// ─── Custom Painter for Curved Path ──────────────────────────────────────────
+
+class SnakePathPainter extends CustomPainter {
+  final double width;
+  final double stepY;
+  final double padding;
+  final int maxReachedLevel;
+
+  SnakePathPainter({
+    required this.width,
+    required this.stepY,
+    required this.padding,
+    required this.maxReachedLevel,
+  });
+
+  MapEntry<int, int> _getRowAndCol(int level) {
+    int index = level - 1;
+    int r = index ~/ 5;
+    int cTemp = index % 5;
+    int c = (r % 2 == 0) ? cTemp : (4 - cTemp);
+    return MapEntry(r, c);
+  }
+
+  Offset _getNodeCenter(int level) {
+    final entry = _getRowAndCol(level);
+    final r = entry.key;
+    final c = entry.value;
+    final double stepX = (width - 2 * padding) / 4;
+    final double x = padding + c * stepX;
+    final double y = padding + r * stepY + 80;
+    return Offset(x, y);
+  }
+
+  Path _buildSnakeCurvePath(int limit) {
+    final path = Path();
+    if (limit < 1) return path;
+
+    bool first = true;
+    for (int i = 1; i <= limit; i++) {
+      final offset = _getNodeCenter(i);
+      if (first) {
+        path.moveTo(offset.dx, offset.dy);
+        first = false;
+      } else {
+        final prevOffset = _getNodeCenter(i - 1);
+        final prevEntry = _getRowAndCol(i - 1);
+        final currEntry = _getRowAndCol(i);
+        
+        if (prevEntry.key == currEntry.key) {
+          path.lineTo(offset.dx, offset.dy);
+        } else {
+          final double stepX = (width - 2 * padding) / 4;
+          if (prevEntry.value == 4 && currEntry.value == 4) {
+            final cp1 = Offset(prevOffset.dx + stepX * 1.1, prevOffset.dy);
+            final cp2 = Offset(offset.dx + stepX * 1.1, offset.dy);
+            path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, offset.dx, offset.dy);
+          } else {
+            final cp1 = Offset(prevOffset.dx - stepX * 1.1, prevOffset.dy);
+            final cp2 = Offset(offset.dx - stepX * 1.1, offset.dy);
+            path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, offset.dx, offset.dy);
+          }
+        }
+      }
+    }
+    return path;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (width <= 0) return;
+
+    final fullPath = _buildSnakeCurvePath(50);
+
+    final borderPaint = Paint()
+      ..color = const Color(0xFF8D6E63).withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 22
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, borderPaint);
+
+    final bgTrackPaint = Paint()
+      ..color = Colors.grey.shade300
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, bgTrackPaint);
+
+    final fgTrackPaint = Paint()
+      ..color = const Color(0xFF4CAF50)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    int limit = maxReachedLevel;
+    if (limit > 50) limit = 50;
+    if (limit > 1) {
+      final unlockedPath = _buildSnakeCurvePath(limit);
+      canvas.drawPath(unlockedPath, fgTrackPaint);
+    }
+
+    final dashPaint = Paint()
+      ..color = Colors.white.withOpacity(0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    _drawDashedPath(canvas, fullPath, dashPaint);
+  }
+
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint) {
+    const double dashWidth = 6.0;
+    const double dashSpace = 6.0;
+    double distance = 0.0;
+    for (PathMetric measurePath in path.computeMetrics()) {
+      while (distance < measurePath.length) {
+        double nextDistance = distance + dashWidth;
+        if (nextDistance > measurePath.length) {
+          nextDistance = measurePath.length;
+        }
+        canvas.drawPath(
+          measurePath.extractPath(distance, nextDistance),
+          paint,
+        );
+        distance = nextDistance + dashSpace;
+      }
+      distance = 0.0;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SnakePathPainter oldDelegate) {
+    return oldDelegate.width != width ||
+        oldDelegate.stepY != stepY ||
+        oldDelegate.padding != padding ||
+        oldDelegate.maxReachedLevel != maxReachedLevel;
+  }
+}
+
+// ─── Flower Level Node ───────────────────────────────────────────────────────────
+
+class FlowerLevelNode extends StatefulWidget {
+  final int level;
   final bool isUnlocked;
   final bool isCurrent;
-  final bool isCompleted;
+  final VoidCallback? onTap;
 
-  const _LevelTile({
-    required this.id,
-    required this.tileSize,
+  const FlowerLevelNode({
+    super.key,
+    required this.level,
     required this.isUnlocked,
     required this.isCurrent,
-    required this.isCompleted,
+    this.onTap,
+  });
+
+  @override
+  State<FlowerLevelNode> createState() => _FlowerLevelNodeState();
+}
+
+class _FlowerLevelNodeState extends State<FlowerLevelNode> with SingleTickerProviderStateMixin {
+  AnimationController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isCurrent) {
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1000),
+      )..repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FlowerLevelNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isCurrent && _controller == null) {
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1000),
+      )..repeat(reverse: true);
+    } else if (!widget.isCurrent && _controller != null) {
+      _controller!.dispose();
+      _controller = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Color> unlockedPetalColors = [
+      const Color(0xFFFFADAD), // Pastel Red
+      const Color(0xFFFFD6A5), // Pastel Orange
+      const Color(0xFFFDFFB6), // Pastel Yellow
+      const Color(0xFFCAFFBF), // Pastel Green
+      const Color(0xFF9BF6FF), // Pastel Blue
+    ];
+    final List<Color> unlockedTextColors = [
+      const Color(0xFFC62828),
+      const Color(0xFFEF6C00),
+      const Color(0xFFE65100),
+      const Color(0xFF2E7D32),
+      const Color(0xFF1565C0),
+    ];
+
+    final int colorIdx = widget.level % 5;
+    final Color petalColor = widget.isUnlocked
+        ? unlockedPetalColors[colorIdx]
+        : Colors.grey.shade400.withOpacity(0.5);
+
+    final Color centerColor = widget.isUnlocked
+        ? Colors.white
+        : Colors.grey.shade300.withOpacity(0.5);
+
+    final Color textColor = widget.isUnlocked
+        ? unlockedTextColors[colorIdx]
+        : Colors.grey.shade600;
+
+    const double size = 70.0;
+    const double centerCircleSize = 46.0;
+    const double petalSize = 26.0;
+    const double radius = 17.0;
+
+    Widget flower = SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (int i = 0; i < 5; i++)
+            Builder(
+              builder: (context) {
+                final double angle = i * 2 * math.pi / 5 - math.pi / 2;
+                final double dx = radius * math.cos(angle);
+                final double dy = radius * math.sin(angle);
+                return Positioned(
+                  left: (size - petalSize) / 2 + dx,
+                  top: (size - petalSize) / 2 + dy,
+                  child: Container(
+                    width: petalSize,
+                    height: petalSize,
+                    decoration: BoxDecoration(
+                      color: petalColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          Container(
+            width: centerCircleSize,
+            height: centerCircleSize,
+            decoration: BoxDecoration(
+              color: centerColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: widget.isUnlocked 
+                    ? (widget.isCurrent ? const Color(0xFFFFD54F) : Colors.white) 
+                    : Colors.grey.shade400.withOpacity(0.6),
+                width: widget.isCurrent ? 3.5 : 2.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: Center(
+              child: Text(
+                '${widget.level}',
+                style: GoogleFonts.fredoka(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                ),
+              ),
+            ),
+          ),
+          if (!widget.isUnlocked)
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    )
+                  ],
+                ),
+                child: const Icon(
+                  Icons.lock_rounded,
+                  size: 11,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (widget.isCurrent && _controller != null) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (context, child) {
+            final double scale = 1.0 + (_controller!.value * 0.08);
+            return Transform.scale(
+              scale: scale,
+              child: flower,
+            );
+          },
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: widget.isUnlocked ? widget.onTap : null,
+      child: flower,
+    );
+  }
+}
+
+// ─── Ornament Widget ───────────────────────────────────────────────────────────
+
+class OrnamentWidget extends StatelessWidget {
+  final String label;
+  final Color bgColor;
+  final double angle;
+
+  const OrnamentWidget({
+    super.key,
+    required this.label,
+    required this.bgColor,
+    required this.angle,
   });
 
   @override
   Widget build(BuildContext context) {
-    const Color lockedColor = Color(0xFF2D3E50);
-    const Color unlockedColor = CilikTheme.tealTua;
-    const Color highlightColor = Color(0xFFFFD54F);
-
-    return GestureDetector(
-      onTap: isUnlocked 
-          ? () => Navigator.push(context, MaterialPageRoute(builder: (context) => LevelResolver.buildLevel(id)))
-          : null,
+    return Transform.rotate(
+      angle: angle,
       child: Container(
-        width: tileSize - 1,
-        height: tileSize - 1,
-        margin: const EdgeInsets.all(0.5),
+        width: 54,
+        height: 54,
         decoration: BoxDecoration(
-          color: isCurrent ? highlightColor : (isUnlocked ? unlockedColor : lockedColor),
-          border: Border.all(color: Colors.black26, width: 0.5),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Padding(
-                  padding: const EdgeInsets.all(2.0),
-                  child: Text(
-                    '$id',
-                    style: TextStyle(
-                      color: isCurrent ? Colors.black87 : (isUnlocked ? Colors.white : Colors.white24),
-                      fontSize: tileSize * 0.4,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+          color: bgColor,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
             ),
-            if (isCurrent)
-              Positioned(
-                top: -1,
-                child: Icon(Icons.bookmark, color: Colors.orange.withOpacity(0.8), size: tileSize * 0.4),
-              ),
-            if (isCompleted)
-              Positioned(
-                bottom: 1,
-                right: 1,
-                child: Icon(Icons.check_circle, color: Colors.white.withOpacity(0.8), size: tileSize * 0.3),
-              ),
           ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 26),
+          ),
         ),
       ),
     );
