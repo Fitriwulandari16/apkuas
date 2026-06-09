@@ -342,7 +342,7 @@ class _AnimalPatternSequenceScreenState
             height: 64,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: const AlwaysScrollableScrollPhysics(),
               itemCount: _allAnimals.length,
               itemBuilder: (context, index) {
                 final emoji = _allAnimals[index];

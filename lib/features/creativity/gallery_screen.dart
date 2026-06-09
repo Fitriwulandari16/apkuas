@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/gallery_service.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'dart:io';
+import 'package:gal/gal.dart';
 import 'dart:typed_data';
+import 'dart:io';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -177,8 +177,9 @@ class FullScreenImage extends StatelessWidget {
     try {
       final File imageFile = File(path);
       final Uint8List bytes = await imageFile.readAsBytes();
-      final result = await ImageGallerySaver.saveImage(bytes);
-      
+      await Gal.putImageBytes(bytes);
+      final result = {'isSuccess': true}; 
+            
       if (result['isSuccess'] == true) {
         HapticService.success();
         ScaffoldMessenger.of(context).showSnackBar(
