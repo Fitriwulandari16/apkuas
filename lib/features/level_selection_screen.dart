@@ -273,7 +273,9 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        const double padding = 44.0;
+        // padding responsif: 8% lebar layar, minimal 28px, maksimal 52px
+        // agar node paling kiri/kanan selalu berada di dalam layar.
+        final double padding = (width * 0.08).clamp(28.0, 52.0);
         final double stepX = (width - 2 * padding) / 4;
         const double stepY = 200.0;
         const double totalHeight = 2500.0;
@@ -347,22 +349,26 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          child: Container(
-            width: width,
+          child: SizedBox(
+            // double.infinity mengisi lebar constraints.maxWidth secara tepat
+            // tanpa ada angka hardcoded; tidak pernah overflow ke kanan/kiri.
+            width: double.infinity,
             height: totalHeight,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFE0F7FA), // Sky blue
-                  Color(0xFFFFF9C4), // Sun glow
-                  Color(0xFFE8F5E9), // Gentle green
-                ],
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFE0F7FA), // Sky blue
+                    Color(0xFFFFF9C4), // Sun glow
+                    Color(0xFFE8F5E9), // Gentle green
+                  ],
+                ),
               ),
-            ),
             child: Stack(
-              clipBehavior: Clip.none,
+              // hardEdge memastikan tidak ada widget yang melampaui batas Stack
+              clipBehavior: Clip.hardEdge,
               children: [
                 // 1. Draw Snake Path
                 Positioned.fill(
@@ -519,12 +525,14 @@ class _LevelSelectionScreenState extends ConsumerState<LevelSelectionScreen> {
                   );
                 }),
               ],
-            ),
-          ),
+            ),   // tutup Stack
+          ),     // tutup DecoratedBox
+          ),     // tutup SizedBox
         );
       },
     );
   }
+
 
   Widget _buildKreativitasTab() {
     return ListView(
@@ -677,17 +685,22 @@ class SnakePathPainter extends CustomPainter {
           // Horizontal straight line
           path.lineTo(offset.dx, offset.dy);
         } else {
-          // U-turn transition between rows
+          // U-turn transition between rows.
+          // Clamp control points agar tidak pernah melampaui batas kiri/kanan layar.
           final double stepX = (width - 2 * padding) / 4;
+          // Bulge maksimal = 80% stepX agar selalu dalam batas layar
+          final double bulge = stepX * 0.80;
           if (prevEntry.value == 4 && currEntry.value == 4) {
-            // Right turn bulge
-            final cp1 = Offset(prevOffset.dx + stepX * 1.1, prevOffset.dy);
-            final cp2 = Offset(offset.dx + stepX * 1.1, offset.dy);
+            // Right turn: tonjolan ke kanan, di-clamp agar tidak lewat width
+            final double cpX = (prevOffset.dx + bulge).clamp(0.0, width);
+            final cp1 = Offset(cpX, prevOffset.dy);
+            final cp2 = Offset(cpX, offset.dy);
             path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, offset.dx, offset.dy);
           } else {
-            // Left turn bulge
-            final cp1 = Offset(prevOffset.dx - stepX * 1.1, prevOffset.dy);
-            final cp2 = Offset(offset.dx - stepX * 1.1, offset.dy);
+            // Left turn: tonjolan ke kiri, di-clamp agar tidak kurang dari 0
+            final double cpX = (prevOffset.dx - bulge).clamp(0.0, width);
+            final cp1 = Offset(cpX, prevOffset.dy);
+            final cp2 = Offset(cpX, offset.dy);
             path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, offset.dx, offset.dy);
           }
         }
