@@ -1,11 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/services/user_service.dart';
+import 'package:apkuas/core/utils/level_resolver.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class GridCell {
@@ -132,130 +134,177 @@ class _GridSortingFilteringScreenState extends ConsumerState<GridSortingFilterin
   }
 
   void _onLevelComplete() async {
-    // 1. Complete level in local notifier
+    // 1. Catat penyelesaian level di Riverpod provider lokal
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
-    // 2. Sync to Firebase
+    // 2. Sync progress ke Hive/Firebase dengan levelId dinamis (bukan hardcoded)
     try {
-      await UserService.updateProgress(34);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 34: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     if (!mounted) return;
 
-    // 3. Show Final Victory Dialog since this is the last level
-    _showFinalVictoryDialog();
+    // 3. Tampilkan dialog kemenangan standar → lanjut ke level berikutnya
+    //    Level 34 BUKAN level terakhir (game berlanjut sampai Level 50).
+    //    _showFinalVictoryDialog() yang lama sudah dihapus karena salah.
+    _showNextLevelDialog();
   }
 
-  void _showFinalVictoryDialog() {
+  /// Dialog kemenangan standar: menampilkan confetti dan navigasi ke level berikutnya.
+  /// Digunakan untuk semua level yang BUKAN level terakhir (Level 50).
+  void _showNextLevelDialog() {
+    final int nextLevel = widget.levelId + 1;
+    // Batas aman: tidak boleh melampaui level 50
+    final bool isActuallyLastLevel = widget.levelId >= 50;
+
+    // Siapkan ConfettiController untuk hujan warna-warni
+    final confettiController =
+        ConfettiController(duration: const Duration(seconds: 3));
+    confettiController.play();
+
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierLabel: 'FinalVictory',
+      barrierLabel: 'LevelWin',
       transitionDuration: const Duration(milliseconds: 500),
-      pageBuilder: (context, anim1, anim2) {
+      pageBuilder: (dialogContext, anim1, anim2) {
         return const SizedBox.shrink();
       },
-      transitionBuilder: (context, anim1, anim2, child) {
+      transitionBuilder: (dialogContext, anim1, anim2, child) {
         final curvedValue = Curves.elasticOut.transform(anim1.value);
         return Transform.scale(
           scale: curvedValue,
-          child: Align(
-            alignment: Alignment.center,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(color: const Color(0xFFFFD54F), width: 6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Golden Trophy/Medal icon
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: Color(0xFFFFD54F),
-                      size: 110,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'HORE! KAMU LULUS!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: CilikTheme.tealTua,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Selamat! Kamu Hebat!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 16,
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildSkillRow(Icons.check_circle_outline, 'Pola & Pengenalan Pola'),
-                          const SizedBox(height: 6),
-                          _buildSkillRow(Icons.filter_alt_outlined, 'Penyaringan Data (Sorting/Filtering)'),
-                          const SizedBox(height: 6),
-                          _buildSkillRow(Icons.loop_rounded, 'Algoritma Perulangan (Loop)'),
-                          const SizedBox(height: 6),
-                          _buildSkillRow(Icons.bug_report_outlined, 'Logika Kondisional & Debugging'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 4,
-                      ),
-                      onPressed: () {
-                        // Pop dialog and return to adventure map
-                        Navigator.pop(context); // close dialog
-                        Navigator.pop(context); // close level 34 screen
-                      },
-                      child: Text(
-                        'SELESAI',
-                        style: GoogleFonts.fredoka(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+          child: Stack(
+            children: [
+              // ── Hujan Confetti ──────────────────────────────────────────
+              Align(
+                alignment: Alignment.topCenter,
+                child: ConfettiWidget(
+                  confettiController: confettiController,
+                  blastDirection: pi / 2, // ke bawah
+                  maxBlastForce: 6,
+                  minBlastForce: 2,
+                  emissionFrequency: 0.06,
+                  numberOfParticles: 30,
+                  gravity: 0.25,
+                  colors: const [
+                    Colors.green,
+                    Colors.blue,
+                    Colors.pink,
+                    Colors.orange,
+                    Colors.purple,
+                    Colors.yellow,
                   ],
                 ),
               ),
-            ),
+              // ── Dialog Card ─────────────────────────────────────────────
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(40),
+                    border: Border.all(
+                      color: isActuallyLastLevel
+                          ? const Color(0xFFFFD54F)
+                          : CilikTheme.tealTua,
+                      width: 5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Ikon bintang
+                        Icon(
+                          isActuallyLastLevel
+                              ? Icons.emoji_events_rounded
+                              : Icons.star_rounded,
+                          color: const Color(0xFFFFD54F),
+                          size: 90,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isActuallyLastLevel
+                              ? 'HORE! KAMU LULUS!'
+                              : 'LEVEL ${widget.levelId} SELESAI! 🎉',
+                          style: GoogleFonts.fredoka(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: CilikTheme.tealTua,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isActuallyLastLevel
+                              ? 'Kamu sudah menyelesaikan semua level!'
+                              : 'Siap untuk Level $nextLevel?',
+                          style: GoogleFonts.fredoka(
+                            fontSize: 15,
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        // ── Tombol Aksi ─────────────────────────────────
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isActuallyLastLevel
+                                ? const Color(0xFFFFD54F)
+                                : CilikTheme.tealTua,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 40, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 4,
+                          ),
+                          onPressed: () {
+                            confettiController.stop();
+                            confettiController.dispose();
+                            Navigator.pop(dialogContext); // tutup dialog
+                            if (isActuallyLastLevel) {
+                              // Kembali ke peta untuk level terakhir
+                              Navigator.pop(context);
+                            } else {
+                              // Ganti halaman saat ini dengan level berikutnya
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      LevelResolver.buildLevel(nextLevel),
+                                ),
+                              );
+                            }
+                          },
+                          child: Text(
+                            isActuallyLastLevel ? 'SELESAI' : 'LANJUT ▶',
+                            style: GoogleFonts.fredoka(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
