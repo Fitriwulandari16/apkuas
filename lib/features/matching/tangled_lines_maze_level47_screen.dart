@@ -67,15 +67,15 @@ class _TangledLinesMazeLevelScreenState
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
     try {
-      await UserService.updateProgress(47);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 47: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      nextLevelId: 48,
+      nextLevelId: widget.levelId + 1,
       title: 'Luar Biasa Hebat!',
       message: 'Kamu berhasil menelusuri semua jalur kusut dengan benar!',
     );

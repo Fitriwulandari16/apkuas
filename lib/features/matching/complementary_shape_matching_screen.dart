@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/services/user_service.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 enum ShapeType {
@@ -215,107 +216,19 @@ class _ComplementaryShapeMatchingScreenState extends ConsumerState<Complementary
 
     // 2. Sync to cloud database
     try {
-      await UserService.updateProgress(36);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 36: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     if (!mounted) return;
 
-    // 3. Show dynamic premium success dialog and return to Map
-    _showSuccessDialog();
-  }
-
-  void _showSuccessDialog() {
-    showGeneralDialog(
+    // 3. Show Celebration and transition to next level
+    CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      barrierDismissible: false,
-      barrierLabel: 'SuccessVictory',
-      transitionDuration: const Duration(milliseconds: 550),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        final scaleValue = Curves.elasticOut.transform(anim1.value);
-        return Transform.scale(
-          scale: scaleValue,
-          child: Align(
-            alignment: Alignment.center,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(color: Colors.amber, width: 6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: Colors.amber,
-                      size: 110,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'HEBAT! KAMU PINTAR!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: CilikTheme.tealTua,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Kamu berhasil mencocokkan semua bentuk pelengkap dengan sangat sempurna!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 18,
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 28),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 4,
-                      ),
-                      onPressed: () {
-                        // Pop dialog and pop screen to return back to Adventure Map
-                        Navigator.pop(context); // close dialog
-                        Navigator.pop(context); // close screen
-                      },
-                      child: Text(
-                        'SELESAI',
-                        style: GoogleFonts.fredoka(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      nextLevelId: widget.levelId + 1,
+      title: 'HEBAT! KAMU PINTAR!',
+      message: 'Kamu berhasil mencocokkan semua bentuk pelengkap dengan sangat sempurna!',
     );
   }
 

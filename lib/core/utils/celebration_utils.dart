@@ -46,8 +46,15 @@ class _CelebrationScreenState extends State<_CelebrationScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _confettiController.play();
+
+    // Safety backup to manually stop confetti after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _confettiController.stop();
+      }
+    });
     
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
@@ -60,6 +67,7 @@ class _CelebrationScreenState extends State<_CelebrationScreen> {
 
   @override
   void dispose() {
+    _confettiController.stop();
     _confettiController.dispose();
     super.dispose();
   }

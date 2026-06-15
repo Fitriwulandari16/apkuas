@@ -6,6 +6,7 @@ import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/services/user_service.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ButterflyDotModel {
@@ -182,9 +183,9 @@ class _SymmetryButterflyScreenState extends ConsumerState<SymmetryButterflyScree
 
     // 3. Sync to cloud database
     try {
-      await UserService.updateProgress(37);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 37: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     // 4. Wait for wing flap animation to complete before showing dialog
@@ -192,100 +193,12 @@ class _SymmetryButterflyScreenState extends ConsumerState<SymmetryButterflyScree
 
     if (!mounted) return;
 
-    // 5. Show premium victory dialog and return back to Map
-    _showSuccessDialog();
-  }
-
-  void _showSuccessDialog() {
-    showGeneralDialog(
+    // 5. Show Celebration and transition to next level
+    CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      barrierDismissible: false,
-      barrierLabel: 'SymmetrySuccess',
-      transitionDuration: const Duration(milliseconds: 550),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        final scaleValue = Curves.elasticOut.transform(anim1.value);
-        return Transform.scale(
-          scale: scaleValue,
-          child: Align(
-            alignment: Alignment.center,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(color: Colors.amber, width: 6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.emoji_events_rounded,
-                      color: Colors.amber,
-                      size: 110,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'WOW! KAMU HEBAT!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: CilikTheme.tealTua,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Kupu-kupu sekarang terlihat sangat indah dan simetris berkat bantuanmu!',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 18,
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 28),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 4,
-                      ),
-                      onPressed: () {
-                        // Return back to Adventure Map
-                        Navigator.pop(context); // close dialog
-                        Navigator.pop(context); // close level 37 screen
-                      },
-                      child: Text(
-                        'SELESAI',
-                        style: GoogleFonts.fredoka(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      nextLevelId: widget.levelId + 1,
+      title: 'WOW! KAMU HEBAT!',
+      message: 'Kupu-kupu sekarang terlihat sangat indah dan simetris berkat bantuanmu!',
     );
   }
 

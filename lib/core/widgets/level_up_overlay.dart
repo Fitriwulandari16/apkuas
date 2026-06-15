@@ -61,17 +61,19 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> with SingleTickerProvid
 
   void _navigateToNext() {
     final levelId = _extractLevelId(widget.nextRoute);
+    final navigator = Navigator.of(context);
     if (levelId != null) {
-      // Use LevelResolver directly — it has a built-in fallback for undefined levels
-      Navigator.pushReplacement(
-        context,
+      // First, pop the celebration overlay/dialog to return to the active level screen
+      navigator.pop();
+      // Then, replace the active level screen with the next level screen
+      navigator.pushReplacement(
         MaterialPageRoute(
           builder: (context) => LevelResolver.buildLevel(levelId),
         ),
       );
     } else {
       // Fallback for non-level routes
-      Navigator.pop(context);
+      navigator.pop();
     }
   }
 

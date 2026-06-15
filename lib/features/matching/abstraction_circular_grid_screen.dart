@@ -161,17 +161,17 @@ class _AbstractionCircularGridScreenState extends ConsumerState<AbstractionCircu
 
     // 2. Sync to cloud database
     try {
-      await UserService.updateProgress(35);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 35: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     if (!mounted) return;
 
-    // 3. Show Celebration Overlay leading to Level 36
+    // 3. Show Celebration Overlay leading to next level
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      nextLevelId: 36,
+      nextLevelId: widget.levelId + 1,
       title: 'Hebat, Kamu Pintar!',
       message: 'Kamu berhasil mewarnai semua lingkaran abstrak dengan sangat rapi!',
     );
