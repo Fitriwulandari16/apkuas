@@ -276,43 +276,75 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
                                   ),
                               ],
                             ),
-                            child: Row(
-                              children: [
-                                // Sisi Kiri: 4 colored glossy bubbles
-                                Row(
-                                  children: row.bubbleColors.map((color) => _buildGlossyBubble(color)).toList(),
-                                ),
-                                const Spacer(),
-                                const Icon(Icons.arrow_forward_rounded, color: Colors.grey, size: 18),
-                                const Spacer(),
-                                // Sisi Kanan: 4 large number inputs
-                                Row(
-                                  children: List.generate(4, (slotIdx) {
-                                    final numberVal = row.currentNumbers[slotIdx];
-                                    final isSlotFocused = isSelected && row.currentNumbers.indexOf(null) == slotIdx;
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                double bubbleSize = 30.0;
+                                double inputBoxSize = 30.0;
+                                double spacing = 4.0;
+                                double arrowSize = 16.0;
+                                double padding = 3.0;
+                                double checkmarkSize = 26.0;
 
-                                    return _buildNumberInputBox(numberVal, row.isSolved, isSlotFocused);
-                                  }),
-                                ),
-                                const SizedBox(width: 8),
-                                // Solved checkmark
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: row.isSolved ? const Color(0xFF4CAF50) : Colors.transparent,
-                                    shape: BoxShape.circle,
-                                    border: row.isSolved 
-                                        ? null 
-                                        : Border.all(color: Colors.grey.shade300, width: 2.0),
-                                  ),
-                                  child: Icon(
-                                    Icons.check,
-                                    color: row.isSolved ? Colors.white : Colors.transparent,
-                                    size: 16,
-                                  ),
-                                ),
-                              ],
+                                if (constraints.maxWidth > 360) {
+                                  bubbleSize = 34.0;
+                                  inputBoxSize = 34.0;
+                                  spacing = 6.0;
+                                  arrowSize = 18.0;
+                                  padding = 4.0;
+                                  checkmarkSize = 28.0;
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const BouncingScrollPhysics(),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Sisi Kiri: 4 colored glossy bubbles
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: row.bubbleColors.map((color) => _buildGlossyBubble(color, size: bubbleSize, padding: padding)).toList(),
+                                            ),
+                                            SizedBox(width: spacing),
+                                            Icon(Icons.arrow_forward_rounded, color: Colors.grey, size: arrowSize),
+                                            SizedBox(width: spacing),
+                                            // Sisi Kanan: 4 large number inputs
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: List.generate(4, (slotIdx) {
+                                                final numberVal = row.currentNumbers[slotIdx];
+                                                final isSlotFocused = isSelected && row.currentNumbers.indexOf(null) == slotIdx;
+                                                return _buildNumberInputBox(numberVal, row.isSolved, isSlotFocused, size: inputBoxSize, margin: padding);
+                                              }),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Solved checkmark (pinned on the right)
+                                    Container(
+                                      width: checkmarkSize,
+                                      height: checkmarkSize,
+                                      decoration: BoxDecoration(
+                                        color: row.isSolved ? const Color(0xFF4CAF50) : Colors.transparent,
+                                        shape: BoxShape.circle,
+                                        border: row.isSolved 
+                                            ? null 
+                                            : Border.all(color: Colors.grey.shade300, width: 2.0),
+                                      ),
+                                      child: Icon(
+                                        Icons.check,
+                                        color: row.isSolved ? Colors.white : Colors.transparent,
+                                        size: checkmarkSize * 0.57,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
                             ),
                           ),
                         ),
@@ -460,9 +492,9 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
     );
   }
 
-  Widget _buildGlossyBubble(Color color, {double size = 40}) {
+  Widget _buildGlossyBubble(Color color, {double size = 40, double padding = 4.0}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: Container(
         width: size,
         height: size,
@@ -502,12 +534,12 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
     );
   }
 
-  Widget _buildNumberInputBox(int? value, bool isSolved, bool isFocused) {
+  Widget _buildNumberInputBox(int? value, bool isSolved, bool isFocused, {double size = 42, double margin = 4.0}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      width: 42,
-      height: 42,
+      margin: EdgeInsets.symmetric(horizontal: margin),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: isSolved ? const Color(0xFFE2F0D9) : Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -530,7 +562,7 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
         child: Text(
           value != null ? '$value' : '',
           style: GoogleFonts.fredoka(
-            fontSize: 22,
+            fontSize: size * 0.52,
             fontWeight: FontWeight.bold,
             color: isSolved ? const Color(0xFF385723) : const Color(0xFF1E293B),
           ),
