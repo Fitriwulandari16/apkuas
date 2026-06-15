@@ -33,7 +33,8 @@ class ColorCodeBreakerScreen extends ConsumerStatefulWidget {
   ConsumerState<ColorCodeBreakerScreen> createState() => _ColorCodeBreakerScreenState();
 }
 
-class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen> {
+class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
+    with SingleTickerProviderStateMixin {
   // 4 main glossy bubble colors from reference key
   static const Color colMint = Color(0xFF4FD1C5);   // 1 = Hijau Muda/Toska
   static const Color colOrange = Color(0xFFFB923C); // 2 = Oranye
@@ -44,10 +45,41 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
   int? _selectedRowIndex;
   int? _shakingRowIndex;
 
+  // Proper shake animation controller (prevents main-thread blocking)
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize shake animation (short, finite duration)
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _shakeAnimation = Tween<double>(begin: 0.0, end: 6.0).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+    );
+    _shakeController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() {
+          if (_shakingRowIndex != null) {
+            _challenges[_shakingRowIndex!].currentNumbers = [null, null, null, null];
+          }
+          _shakingRowIndex = null;
+        });
+        _shakeController.reset();
+      }
+    });
+
     _initLevel();
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
   }
 
   void _initLevel() {
@@ -175,7 +207,7 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
     }
   }
 
-  void _shakeRow(int index) async {
+  void _shakeRow(int index) {
     SoundService.playError();
     HapticService.failure();
 
@@ -183,14 +215,9 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
       _shakingRowIndex = index;
     });
 
-    await Future.delayed(const Duration(milliseconds: 350));
-
-    if (mounted) {
-      setState(() {
-        _shakingRowIndex = null;
-        _challenges[index].currentNumbers = [null, null, null, null]; // reset row input on failure
-      });
-    }
+    // AnimationController drives the shake; its statusListener
+    // (in initState) resets _shakingRowIndex & input when complete.
+    _shakeController.forward(from: 0.0);
   }
 
   void _onLevelComplete() async {
@@ -249,11 +276,9 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
                       final row = _challenges[idx];
                       final isSelected = _selectedRowIndex == idx;
                       final isShaking = _shakingRowIndex == idx;
-                      final double shakeX = isShaking ? 6.0 * sin(2 * pi * DateTime.now().millisecond / 100) : 0.0;
 
-                      return Transform.translate(
-                        offset: Offset(shakeX, 0),
-                        child: GestureDetector(
+                      // Build the row content as a reusable widget
+                      final rowWidget = GestureDetector(
                           onTap: () => _handleRowTap(idx),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
@@ -347,7 +372,23 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
                               }
                             ),
                           ),
-                        ),
+                      );
+
+                      // Only wrap with AnimatedBuilder for the shaking row
+                      // to avoid unnecessary rebuilds on all 6 rows
+                      if (!isShaking) return rowWidget;
+
+                      return AnimatedBuilder(
+                        animation: _shakeAnimation,
+                        builder: (context, child) {
+                          final double shakeX = _shakeAnimation.value *
+                              sin(2 * pi * (_shakeController.value * 4));
+                          return Transform.translate(
+                            offset: Offset(shakeX, 0),
+                            child: child,
+                          );
+                        },
+                        child: rowWidget,
                       );
                     },
                   ),
