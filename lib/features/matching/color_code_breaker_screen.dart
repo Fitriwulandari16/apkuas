@@ -486,24 +486,32 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        alignment: WrapAlignment.spaceEvenly,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 8,
         children: legends.map((legend) {
           final int numVal = legend['num'] as int;
           final Color color = legend['color'] as Color;
 
           return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildGlossyBubble(color, size: 36),
-              const SizedBox(width: 8),
+              _buildGlossyBubble(color, size: 30),
+              const SizedBox(width: 4),
               Text(
                 '=',
-                style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                style: GoogleFonts.fredoka(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               Container(
-                width: 32,
-                height: 32,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
@@ -519,7 +527,7 @@ class _ColorCodeBreakerScreenState extends ConsumerState<ColorCodeBreakerScreen>
                   child: Text(
                     '$numVal',
                     style: GoogleFonts.fredoka(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF1E293B),
                     ),
