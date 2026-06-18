@@ -162,14 +162,25 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     // Bounds validation on errorIndex
     if (row.errorIndex < 0 || row.errorIndex >= row.targetColors.length) return;
 
-    final targetColor = row.targetColors[row.errorIndex];
+    // Dynamically update the color on drop
+    setState(() {
+      row.initialColors[row.errorIndex] = color;
+    });
 
-    if (color == targetColor) {
+    // Check if the entire row matches the target pattern
+    bool rowMatches = true;
+    for (int i = 0; i < row.initialColors.length; i++) {
+      if (row.initialColors[i] != row.targetColors[i]) {
+        rowMatches = false;
+        break;
+      }
+    }
+
+    if (rowMatches) {
       // Correct repair color!
       SoundService.playSuccess();
       HapticService.success();
 
-      if (!mounted) return;
       setState(() {
         row.isCorrected = true;
       });
@@ -456,8 +467,12 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                   Widget finalWidget;
                   if (isErrorIndex && row.isIdentified && !row.isCorrected) {
                     finalWidget = DragTarget<Color>(
-                      onWillAcceptWithDetails: (details) => true,
-                      onAcceptWithDetails: (details) => _handleColorDrop(row, details.data),
+                      onWillAccept: (data) => true,
+                      onAccept: (data) {
+                        if (data != null) {
+                          _handleColorDrop(row, data);
+                        }
+                      },
                       builder: (context, candidateData, rejectedData) {
                         final bool isHovering = candidateData.isNotEmpty;
                         return AnimatedScale(
