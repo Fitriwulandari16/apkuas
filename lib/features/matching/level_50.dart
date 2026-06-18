@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:apkuas/core/providers/progress_provider.dart';
+import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 
-class Level50Screen extends StatefulWidget {
+class Level50Screen extends ConsumerStatefulWidget {
   const Level50Screen({Key? key}) : super(key: key);
 
   @override
-  State<Level50Screen> createState() => _Level50ScreenState();
+  ConsumerState<Level50Screen> createState() => _Level50ScreenState();
 }
 
-class _Level50ScreenState extends State<Level50Screen> {
+class _Level50ScreenState extends ConsumerState<Level50Screen> {
   // Definisi ukuran grid (4 Kolom x 5 Baris)
   final int totalColumns = 4;
   final int totalRows = 5;
@@ -94,31 +98,28 @@ class _Level50ScreenState extends State<Level50Screen> {
         if (activePanel < 3) {
           activePanel++; // Lanjut ke panel berikutnya
         } else {
-          _showWinDialog(); // Semua selesai!
+          _onLevelComplete(); // Semua selesai!
         }
       });
     }
   }
 
-  void _showWinDialog() {
-    showDialog(
+  void _onLevelComplete() async {
+    ref.read(progressProvider.notifier).completeLevel(50);
+
+    try {
+      await UserService.updateProgress(50);
+    } catch (e) {
+      debugPrint('Cloud sync failed for level 50: $e');
+    }
+
+    if (!mounted) return;
+
+    CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('🎉 Milestone Selesai!'),
-        content: const Text('Hebat! Kamu berhasil menyelesaikan tantangan Level 50!'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              // Integrasi Firebase progress simpan data UAS
-              // await UserService.updateProgress(50); 
-              Navigator.pop(context);
-              Navigator.pop(context); // Kembali ke Map Screen
-            },
-            child: const Text('Selesai & Simpan'),
-          ),
-        ],
-      ),
+      nextLevelId: 51,
+      title: 'Milestone Selesai!',
+      message: 'Hebat! Kamu berhasil menyelesaikan tantangan Level 50!',
     );
   }
 

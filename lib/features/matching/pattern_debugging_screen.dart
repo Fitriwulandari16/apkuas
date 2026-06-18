@@ -35,7 +35,8 @@ class PatternDebuggingScreen extends ConsumerStatefulWidget {
   ConsumerState<PatternDebuggingScreen> createState() => _PatternDebuggingScreenState();
 }
 
-class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen> {
+class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
+    with SingleTickerProviderStateMixin {
   // Master colors
   static const Color colBlue = Color(0xFF38BDF8);   // Biru Muda
   static const Color colYellow = Color(0xFFFACC15); // Kuning
@@ -45,10 +46,38 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   int? _shakingArrowIndex; // Encodes row*10 + col index to identify shaking arrow
   bool _isSolved = false;
 
+  // Proper shake animation controller (prevents main-thread blocking)
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize shake animation (short, finite duration)
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _shakeAnimation = Tween<double>(begin: 0.0, end: 6.0).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+    );
+    _shakeController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() {
+          _shakingArrowIndex = null;
+        });
+        _shakeController.reset();
+      }
+    });
+
     _initLevel();
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
   }
 
   void _initLevel() {
@@ -88,6 +117,11 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
 
   void _handleArrowTap(int rowIndex, int colIndex) {
     if (_isSolved) return;
+
+    // Bounds validation to prevent RangeError
+    if (rowIndex < 0 || rowIndex >= _rows.length) return;
+    if (colIndex < 0 || colIndex >= 6) return;
+
     final row = _rows[rowIndex];
 
     // Tapping is only for identifying the wrong color before correction
@@ -98,6 +132,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       SoundService.playSuccess();
       HapticService.success();
 
+      if (!mounted) return;
       setState(() {
         row.isIdentified = true;
       });
@@ -107,24 +142,26 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     }
   }
 
-  void _shakeArrow(int rowIndex, int colIndex) async {
+  void _shakeArrow(int rowIndex, int colIndex) {
     SoundService.playError();
     HapticService.failure();
 
+    if (!mounted) return;
     setState(() {
       _shakingArrowIndex = rowIndex * 10 + colIndex;
     });
 
-    await Future.delayed(const Duration(milliseconds: 350));
-
-    if (mounted) {
-      setState(() {
-        _shakingArrowIndex = null;
-      });
-    }
+    // AnimationController drives the shake; its statusListener
+    // (in initState) resets _shakingArrowIndex when complete.
+    _shakeController.forward(from: 0.0);
   }
 
   void _handleColorDrop(DebuggingRowModel row, Color color) {
+    if (_isSolved) return;
+
+    // Bounds validation on errorIndex
+    if (row.errorIndex < 0 || row.errorIndex >= row.targetColors.length) return;
+
     final targetColor = row.targetColors[row.errorIndex];
 
     if (color == targetColor) {
@@ -132,6 +169,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       SoundService.playSuccess();
       HapticService.success();
 
+      if (!mounted) return;
       setState(() {
         row.isCorrected = true;
       });
@@ -148,6 +186,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   }
 
   void _onLevelComplete() async {
+    if (!mounted) return;
     setState(() {
       _isSolved = true;
     });
@@ -204,6 +243,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                     physics: const BouncingScrollPhysics(),
                     itemCount: _rows.length,
                     itemBuilder: (context, rowIndex) {
+                      if (rowIndex < 0 || rowIndex >= _rows.length) {
+                        return const SizedBox.shrink();
+                      }
                       final row = _rows[rowIndex];
                       return _buildChallengeRow(row, rowIndex);
                     },
@@ -382,16 +424,21 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(6, (colIndex) {
+                  // Bounds safety check
+                  if (colIndex >= row.initialColors.length) {
+                    return const SizedBox.shrink();
+                  }
+
                   final isErrorIndex = colIndex == row.errorIndex;
                   final isShaking = _shakingArrowIndex == (rowIndex * 10 + colIndex);
-                  final double shakeX = isShaking ? 6.0 * sin(2 * pi * DateTime.now().millisecond / 100) : 0.0;
 
                   Color arrowColor = row.initialColors[colIndex];
-                  if (isErrorIndex && row.isCorrected) {
+                  if (isErrorIndex && row.isCorrected && colIndex < row.targetColors.length) {
                     arrowColor = row.targetColors[colIndex]; // show corrected color
                   }
 
-                  Widget arrowWidget = SizedBox(
+                  // Build the base arrow widget
+                  final baseArrow = SizedBox(
                     width: arrowW,
                     height: arrowH,
                     child: CustomPaint(
@@ -404,27 +451,46 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                   );
 
                   // If identified but not corrected, make the error slot a DragTarget
+                  // Note: We use baseArrow as child (not arrowWidget) to avoid
+                  // self-referencing variable which causes widget tree corruption
+                  Widget finalWidget;
                   if (isErrorIndex && row.isIdentified && !row.isCorrected) {
-                    arrowWidget = DragTarget<Color>(
-                      onWillAccept: (data) => data != null,
-                      onAccept: (data) => _handleColorDrop(row, data),
+                    finalWidget = DragTarget<Color>(
+                      onWillAcceptWithDetails: (details) => true,
+                      onAcceptWithDetails: (details) => _handleColorDrop(row, details.data),
                       builder: (context, candidateData, rejectedData) {
                         final bool isHovering = candidateData.isNotEmpty;
                         return AnimatedScale(
                           scale: isHovering ? 1.2 : 1.0,
                           duration: const Duration(milliseconds: 200),
-                          child: arrowWidget,
+                          child: baseArrow,
                         );
                       },
                     );
+                  } else {
+                    finalWidget = baseArrow;
                   }
 
-                  return Transform.translate(
-                    offset: Offset(shakeX, 0),
-                    child: GestureDetector(
-                      onTap: () => _handleArrowTap(rowIndex, colIndex),
-                      child: arrowWidget,
-                    ),
+                  // Wrap with gesture detector for tap identification
+                  final tappableWidget = GestureDetector(
+                    onTap: () => _handleArrowTap(rowIndex, colIndex),
+                    child: finalWidget,
+                  );
+
+                  // Only wrap with AnimatedBuilder for the shaking arrow
+                  if (!isShaking) return tappableWidget;
+
+                  return AnimatedBuilder(
+                    animation: _shakeAnimation,
+                    builder: (context, child) {
+                      final double shakeX = _shakeAnimation.value *
+                          sin(2 * pi * (_shakeController.value * 4));
+                      return Transform.translate(
+                        offset: Offset(shakeX, 0),
+                        child: child,
+                      );
+                    },
+                    child: tappableWidget,
                   );
                 }),
               );

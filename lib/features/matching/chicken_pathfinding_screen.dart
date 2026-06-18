@@ -264,7 +264,7 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
 
                           // 3. Draw static start/finish points
                           _buildStaticStart(0, 0, cellW, cellH), // Rooster Nest
-                          _buildStaticFinish(4, 3, cellW, cellH), // Coop with Hen
+                          _buildStaticFinish(3, 4, cellW, cellH), // Coop with Hen
 
                           // 4. Draw walking Rooster character overlay
                           _buildRoosterCharacter(cellW, cellH),
@@ -362,8 +362,17 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
           ),
-          child: const Center(
-            child: Icon(Icons.egg_rounded, color: Colors.white70, size: 36),
+          child: Center(
+            child: Image.asset(
+              'assets/images/egg.png',
+              width: w * 0.6,
+              height: h * 0.6,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.egg_rounded,
+                color: Colors.white70,
+                size: 36,
+              ),
+            ),
           ),
         ),
       ),
@@ -392,32 +401,36 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              // Hen face peek inside
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    '🐔',
-                    style: TextStyle(fontSize: w * 0.38),
+          child: Image.asset(
+            'assets/images/chicken_coop.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => Stack(
+              children: [
+                // Hen face peek inside
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      '🐔',
+                      style: TextStyle(fontSize: w * 0.38),
+                    ),
                   ),
                 ),
-              ),
-              // Nest base
-              Positioned(
-                bottom: 2,
-                left: 4,
-                right: 4,
-                child: Container(
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade300,
-                    borderRadius: BorderRadius.circular(4),
+                // Nest base
+                Positioned(
+                  bottom: 2,
+                  left: 4,
+                  right: 4,
+                  child: Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -530,9 +543,14 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Text(
-              '🐓',
-              style: TextStyle(fontSize: w * 0.44),
+            child: Image.asset(
+              'assets/images/rooster.png',
+              width: w * 0.5,
+              height: h * 0.5,
+              errorBuilder: (context, error, stackTrace) => Text(
+                '🐓',
+                style: TextStyle(fontSize: w * 0.44),
+              ),
             ),
           ),
         ),

@@ -62,7 +62,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> with SingleTickerProvid
   void _navigateToNext() {
     final levelId = _extractLevelId(widget.nextRoute);
     final navigator = Navigator.of(context);
-    if (levelId != null) {
+    if (levelId != null && levelId <= 50) {
       // First, pop the celebration overlay/dialog to return to the active level screen
       navigator.pop();
       // Then, replace the active level screen with the next level screen
@@ -72,13 +72,17 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> with SingleTickerProvid
         ),
       );
     } else {
-      // Fallback for non-level routes
-      navigator.pop();
+      // Fallback for non-level routes or final level completion
+      navigator.pop(); // Pop the celebration screen
+      navigator.pop(); // Pop the active level screen
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final levelId = _extractLevelId(widget.nextRoute);
+    final bool isLastLevel = levelId == null || levelId > 50;
+
     Widget content = Center(
       child: ScaleTransition(
         scale: _scaleAnimation,
@@ -147,7 +151,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> with SingleTickerProvid
                   ),
                   onPressed: _navigateToNext,
                   child: Text(
-                    'LANJUT',
+                    isLastLevel ? 'SELESAI' : 'LANJUT',
                     style: GoogleFonts.fredoka(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
