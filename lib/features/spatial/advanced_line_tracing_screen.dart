@@ -34,11 +34,40 @@ class _AdvancedLineTracingScreenState extends ConsumerState<AdvancedLineTracingS
   List<_Line> userLines = [];
   int? activeStartIndex;
   Offset? currentTouchPos;
+  bool _showRedFlash = false;
 
   @override
-  void initState() { super.initState(); currentLevel = levels[currentLevelIndex]; }
+  void initState() {
+    super.initState();
+    currentLevelIndex = 0;
+    currentLevel = levels[currentLevelIndex];
+    userLines = [];
+    activeStartIndex = null;
+    currentTouchPos = null;
+    _showRedFlash = false;
+  }
 
-  void _resetLevel() { setState(() { userLines = []; activeStartIndex = null; currentTouchPos = null; }); }
+  void _resetLevel() {
+    setState(() {
+      userLines = [];
+      activeStartIndex = null;
+      currentTouchPos = null;
+      _showRedFlash = false;
+    });
+  }
+
+  void _triggerFlashRed() {
+    setState(() {
+      _showRedFlash = true;
+    });
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _showRedFlash = false;
+        });
+      }
+    });
+  }
 
   void _nextLevel() {
     if (currentLevelIndex < levels.length - 1) {
@@ -92,26 +121,69 @@ class _AdvancedLineTracingScreenState extends ConsumerState<AdvancedLineTracingS
                     Expanded(child: _GridPanel(dotPositions: dotPositions, lines: currentLevel.targetLines, color: currentLevel.color, isInteractive: false, title: 'CONTOH')),
                     Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 40), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
                     Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return GestureDetector(
-                            onPanStart: (details) {
-                              int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
-                              if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
-                            },
-                            onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
-                            onPanEnd: (details) {
-                              if (activeStartIndex != null && currentTouchPos != null) {
-                                int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
-                                if (endIndex != null && endIndex != activeStartIndex) {
-                                  setState(() { _Line newLine = _Line(activeStartIndex!, endIndex); if (!userLines.any((l) => l == newLine)) { userLines.add(newLine); HapticService.light(); _checkSuccess(); } });
-                                }
-                              }
-                              setState(() { activeStartIndex = null; currentTouchPos = null; });
-                            },
-                            child: _GridPanel(dotPositions: dotPositions, lines: userLines, activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null, color: currentLevel.color, isInteractive: true, title: 'GAMBAR DISINI'),
-                          );
-                        },
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return GestureDetector(
+                                  onPanStart: (details) {
+                                    int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
+                                    if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
+                                  },
+                                  onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
+                                  onPanEnd: (details) {
+                                    if (activeStartIndex != null && currentTouchPos != null) {
+                                      int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
+                                      if (endIndex != null && endIndex != activeStartIndex) {
+                                        _Line newLine = _Line(activeStartIndex!, endIndex);
+                                        bool isCorrect = currentLevel.targetLines.any((tl) => tl == newLine);
+                                        if (isCorrect) {
+                                          setState(() {
+                                            if (!userLines.any((l) => l == newLine)) {
+                                              userLines.add(newLine);
+                                              HapticService.light();
+                                              _checkSuccess();
+                                            }
+                                          });
+                                        } else {
+                                          HapticService.failure();
+                                          _triggerFlashRed();
+                                        }
+                                      }
+                                    }
+                                    setState(() { activeStartIndex = null; currentTouchPos = null; });
+                                  },
+                                  child: _GridPanel(
+                                    dotPositions: dotPositions,
+                                    lines: userLines,
+                                    activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null,
+                                    color: currentLevel.color,
+                                    isInteractive: true,
+                                    title: 'GAMBAR DISINI',
+                                    showRedFlash: _showRedFlash,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _resetLevel,
+                            icon: Icon(Icons.refresh_rounded, color: currentLevel.color, size: 20),
+                            label: Text(
+                              'Ulangi',
+                              style: TextStyle(
+                                color: currentLevel.color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -135,14 +207,77 @@ class _ActiveLine { final int startIndex; final Offset endPos; const _ActiveLine
 class _LevelData { final String stage; final Color color; final List<_Line> targetLines; final String instruction; const _LevelData({required this.stage, required this.color, required this.targetLines, required this.instruction}); }
 
 class _GridPanel extends StatelessWidget {
-  final List<Offset> dotPositions; final List<_Line> lines; final _ActiveLine? activeLine; final Color color; final bool isInteractive; final String title;
-  const _GridPanel({required this.dotPositions, required this.lines, this.activeLine, required this.color, required this.isInteractive, required this.title});
-  @override Widget build(BuildContext context) {
+  final List<Offset> dotPositions;
+  final List<_Line> lines;
+  final _ActiveLine? activeLine;
+  final Color color;
+  final bool isInteractive;
+  final String title;
+  final bool showRedFlash;
+
+  const _GridPanel({
+    required this.dotPositions,
+    required this.lines,
+    this.activeLine,
+    required this.color,
+    required this.isInteractive,
+    required this.title,
+    this.showRedFlash = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(title, style: TextStyle(color: color.withOpacity(0.7), fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.2))),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: showRedFlash ? Colors.red.withOpacity(0.1) : color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: showRedFlash ? Colors.red.withOpacity(0.7) : color.withOpacity(0.7),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
-        Expanded(child: AspectRatio(aspectRatio: 0.85, child: Container(margin: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20, spreadRadius: 5, offset: const Offset(0, 10))], border: Border.all(color: color.withOpacity(0.1), width: 2)), child: CustomPaint(painter: _GridPainter(dotPositions: dotPositions, lines: lines, activeLine: activeLine, color: color))))),
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 0.85,
+            child: Container(
+              margin: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: showRedFlash ? const Color(0xFFFFEBEE) : Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: showRedFlash ? Colors.red.withOpacity(0.15) : color.withOpacity(0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                    offset: const Offset(0, 10),
+                  )
+                ],
+                border: Border.all(
+                  color: showRedFlash ? Colors.red.withOpacity(0.5) : color.withOpacity(0.1),
+                  width: showRedFlash ? 2.5 : 2,
+                ),
+              ),
+              child: CustomPaint(
+                painter: _GridPainter(
+                  dotPositions: dotPositions,
+                  lines: lines,
+                  activeLine: activeLine,
+                  color: showRedFlash ? Colors.red : color,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
