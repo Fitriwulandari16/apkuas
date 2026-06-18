@@ -125,7 +125,7 @@ class _TangledLinesMazeLevelScreenState
           ),
           Expanded(
             child: Text(
-              'Level 47',
+              'Level ${widget.levelId}',
               textAlign: TextAlign.center,
               style: GoogleFonts.fredoka(
                 fontSize: 24,
