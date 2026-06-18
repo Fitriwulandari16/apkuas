@@ -1,106 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:apkuas/core/theme/cilik_theme.dart';
+import 'package:apkuas/core/services/haptic_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:apkuas/core/services/user_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Level50Screen extends ConsumerStatefulWidget {
-  const Level50Screen({Key? key}) : super(key: key);
+  const Level50Screen({super.key});
 
   @override
   ConsumerState<Level50Screen> createState() => _Level50ScreenState();
 }
 
 class _Level50ScreenState extends ConsumerState<Level50Screen> {
-  // Definisi ukuran grid (4 Kolom x 5 Baris)
-  final int totalColumns = 4;
-  final int totalRows = 5;
+  // Orange loop target pattern path coordinates (index 0 to 15)
+  final List<int> targetPattern = [12, 8, 4, 0, 1, 5, 9, 10, 6, 2, 3, 7, 11, 15, 14, 13, 12];
 
-  // Track panel yang sudah selesai (0: Ungu Tua, 1: Oranye, 2: Hijau, 3: Ungu Muda)
-  List<bool> panelSuccess = [false, false, false, false];
-  
-  // State untuk menyimpan garis yang sedang digambar user pada panel aktif
-  int activePanel = 0;
-  List<PointIndex> userPath = [];
-  PointIndex? drawingStart;
+  // User drawn path node indices
+  List<int> userPath = [];
   Offset? currentDragOffset;
+  bool _showRedFlash = false;
 
-  // Kunci Jawaban koordinat untuk masing-masing panel (pola garis terhubung)
-  // Format: Menghubungkan titik (kolom, baris)
-  final List<List<LineSegment>> targetAnswers = [
-    // Panel 1: Bentuk 'P' Terbalik (Ungu Tua)
-    [
-      LineSegment(PointIndex(0, 0), PointIndex(3, 0)),
-      LineSegment(PointIndex(3, 0), PointIndex(3, 2)),
-      LineSegment(PointIndex(3, 2), PointIndex(0, 2)),
-      LineSegment(PointIndex(0, 2), PointIndex(0, 0)),
-      LineSegment(PointIndex(0, 2), PointIndex(0, 4)),
-    ],
-    // Panel 2: Bentuk 'U' Ganda (Oranye)
-    [
-      LineSegment(PointIndex(0, 0), PointIndex(0, 4)),
-      LineSegment(PointIndex(0, 4), PointIndex(1, 4)),
-      LineSegment(PointIndex(1, 4), PointIndex(1, 1)),
-      LineSegment(PointIndex(1, 1), PointIndex(2, 1)),
-      LineSegment(PointIndex(2, 1), PointIndex(2, 4)),
-      LineSegment(PointIndex(2, 4), PointIndex(3, 4)),
-      LineSegment(PointIndex(3, 4), PointIndex(3, 0)),
-    ],
-    // Panel 3: Bentuk Tangga Berliku (Hijau Tua)
-    [
-      LineSegment(PointIndex(0, 0), PointIndex(2, 0)),
-      LineSegment(PointIndex(2, 0), PointIndex(2, 2)),
-      LineSegment(PointIndex(2, 2), PointIndex(0, 2)),
-      LineSegment(PointIndex(0, 2), PointIndex(0, 4)),
-      LineSegment(PointIndex(0, 4), PointIndex(3, 4)),
-    ],
-    // Panel 4: Bentuk Jembatan/Gerbang (Ungu Muda)
-    [
-      LineSegment(PointIndex(0, 4), PointIndex(0, 2)),
-      LineSegment(PointIndex(0, 2), PointIndex(1, 2)),
-      LineSegment(PointIndex(1, 2), PointIndex(1, 0)),
-      LineSegment(PointIndex(1, 0), PointIndex(2, 0)),
-      LineSegment(PointIndex(2, 0), PointIndex(2, 2)),
-      LineSegment(PointIndex(2, 2), PointIndex(3, 2)),
-      LineSegment(PointIndex(3, 2), PointIndex(3, 4)),
-    ],
-  ];
+  @override
+  void initState() {
+    super.initState();
+    userPath = [];
+    currentDragOffset = null;
+    _showRedFlash = false;
+  }
 
-  final List<Color> panelColors = [
-    Colors.purple.shade900,
-    Colors.orange.shade700,
-    Colors.green.shade800,
-    Colors.purple.shade400,
-  ];
+  void _resetLevel() {
+    setState(() {
+      userPath.clear();
+      currentDragOffset = null;
+      _showRedFlash = false;
+    });
+  }
+
+  void _triggerFlashRed() {
+    setState(() {
+      _showRedFlash = true;
+    });
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() {
+          _showRedFlash = false;
+          userPath.clear();
+        });
+      }
+    });
+  }
+
+  bool _isListEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   void _checkValidation() {
-    // Logika pencocokan sederhana: periksa apakah user berhasil membuat semua segmen kunci
-    List<LineSegment> required = targetAnswers[activePanel];
-    int correctCount = 0;
+    bool matchesForward = _isListEqual(userPath, targetPattern);
+    bool matchesBackward = _isListEqual(userPath, targetPattern.reversed.toList());
 
-    for (var req in required) {
-      bool found = false;
-      for (int i = 0; i < userPath.length - 1; i++) {
-        var seg = LineSegment(userPath[i], userPath[i + 1]);
-        if ((seg.start == req.start && seg.end == req.end) ||
-            (seg.start == req.end && seg.end == req.start)) {
-          found = true;
-          break;
-        }
-      }
-      if (found) correctCount++;
-    }
-
-    if (correctCount == required.length) {
-      setState(() {
-        panelSuccess[activePanel] = true;
-        userPath.clear();
-        if (activePanel < 3) {
-          activePanel++; // Lanjut ke panel berikutnya
-        } else {
-          _onLevelComplete(); // Semua selesai!
-        }
-      });
+    if (matchesForward || matchesBackward) {
+      _onLevelComplete();
+    } else {
+      HapticService.failure();
+      _triggerFlashRed();
     }
   }
 
@@ -118,271 +87,383 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
       nextLevelId: 51,
-      title: 'Milestone Selesai!',
-      message: 'Hebat! Kamu berhasil menyelesaikan tantangan Level 50!',
+      title: 'TANTANGAN SELESAI! 🎉',
+      message: 'Luar biasa! Kamu berhasil menamatkan petualangan Level 50!',
     );
+  }
+
+  int? _getNodeFromOffset(Offset offset, double width, double height) {
+    double cellWidth = width / 5;
+    double cellHeight = height / 5;
+    double tolerance = 35.0; // Touch radius snap tolerance
+
+    for (int r = 0; r < 4; r++) {
+      for (int c = 0; c < 4; c++) {
+        double nodeX = cellWidth * (c + 1);
+        double nodeY = cellHeight * (r + 1);
+        if ((offset.dx - nodeX).abs() < tolerance && (offset.dy - nodeY).abs() < tolerance) {
+          return r * 4 + c;
+        }
+      }
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Level 50: Replikasi Pola Titik'),
-        backgroundColor: panelColors[activePanel],
-      ),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Tantangan Panel Aktif: ${activePanel + 1} / 4',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            // Indikator Progress Miniatur Panel
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 5),
-                width: 40,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: panelSuccess[index] ? Colors.green : (index == activePanel ? panelColors[index] : Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              )),
-            ),
-            const SizedBox(height: 15),
-            // Play Area Utama
+            // Custom Header
+            _buildHeader(),
+            // Instruction Box
+            _buildInstruction(),
+            const SizedBox(height: 12),
+            // Side-by-side grids layout
             Expanded(
-              child: Row(
-                children: [
-                  // SISI KIRI: Referensi Kunci Jawaban (Static)
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('CONTOH', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        AspectRatio(
-                          aspectRatio: 4 / 5,
-                          child: Container(
-                            margin: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-                            child: CustomPaint(
-                              painter: GridPainter(
-                                columns: totalColumns,
-                                rows: totalRows,
-                                color: panelColors[activePanel],
-                                staticSegments: targetAnswers[activePanel],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    // LEFT COLUMN: EXAMPLE
+                    Expanded(
+                      child: _buildGridPanel(
+                        title: 'CONTOH',
+                        lines: targetPattern,
+                        color: Colors.orange.shade700,
+                        isInteractive: false,
+                      ),
                     ),
-                  ),
-                  // SISI KANAN: Tempat Menggambar Anak (Interactive)
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('GAMBAR DI SINI', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                        const SizedBox(height: 5),
-                        AspectRatio(
-                          aspectRatio: 4 / 5,
-                          child: Container(
-                            margin: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.blue, width: 2),
-                              color: Colors.blue.shade50.withOpacity(0.3),
-                            ),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                return GestureDetector(
-                                  onPanStart: (details) {
-                                    RenderBox box = context.findRenderObject() as RenderBox;
-                                    Offset localPos = box.globalToLocal(details.globalPosition);
-                                    PointIndex? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
-                                    if (node != null) {
-                                      setState(() {
-                                        drawingStart = node;
-                                        if (userPath.isEmpty || userPath.last != node) {
-                                          userPath.add(node);
-                                        }
-                                      });
-                                    }
-                                  },
-                                  onPanUpdate: (details) {
-                                    RenderBox box = context.findRenderObject() as RenderBox;
-                                    Offset localPos = box.globalToLocal(details.globalPosition);
-                                    setState(() {
-                                      currentDragOffset = localPos;
-                                    });
-                                    PointIndex? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
-                                    if (node != null && drawingStart != null && node != drawingStart) {
-                                      // Jika mendeteksi node baru yang tetangga dekat, kunci jalurnya
-                                      if ((node.col - drawingStart!.col).abs() + (node.row - drawingStart!.row).abs() == 1) {
-                                        setState(() {
-                                          if (!userPath.contains(node)) {
-                                            userPath.add(node);
-                                          }
-                                          drawingStart = node;
-                                        });
-                                      }
-                                    }
-                                  },
-                                  onPanEnd: (details) {
-                                    setState(() {
-                                      drawingStart = null;
-                                      currentDragOffset = null;
-                                    });
-                                    _checkValidation();
-                                  },
-                                  child: CustomPaint(
-                                    painter: GridPainter(
-                                      columns: totalColumns,
-                                      rows: totalRows,
-                                      color: panelColors[activePanel],
-                                      userPath: userPath,
-                                      liveDragOffset: currentDragOffset,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
+                    // Vertical divider line
+                    Container(
+                      width: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 40, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                ],
+                    // RIGHT COLUMN: DRAWING AREA
+                    Expanded(
+                      child: _buildInteractivePanel(),
+                    ),
+                  ],
+                ),
               ),
             ),
-            // Tombol Reset Panel Aktif
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton.icon(
-                onPressed: () => setState(() => userPath.clear()),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Ulangi Gambar'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-              ),
-            )
+            // Reset Button
+            _buildResetButton(),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  // Helper pencarian titik koordinat terdekat dari sentuhan jari anak (Snap)
-  PointIndex? _getNodeFromOffset(Offset offset, double width, double height) {
-    double cellWidth = width / (totalColumns + 1);
-    double cellHeight = height / (totalRows + 1);
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: CilikTheme.tealTua),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Text(
+              'Level 50',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.fredoka(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: CilikTheme.tealTua,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
+      ),
+    );
+  }
 
-    for (int c = 0; c < totalColumns; c++) {
-      for (int r = 0; r < totalRows; r++) {
-        double nodeX = cellWidth * (c + 1);
-        double nodeY = cellHeight * (r + 1);
-        // Radius toleransi tap anak (padding hitbox diatur longgar 30px)
-        if ((offset.dx - nodeX).abs() < 30 && (offset.dy - nodeY).abs() < 30) {
-          return PointIndex(c, r);
+  Widget _buildInstruction() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.gesture_rounded, color: Colors.orange, size: 28),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              'Hubungkan titik-titik di kanan untuk meniru pola contoh di sebelah kiri!',
+              style: GoogleFonts.fredoka(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.blueGrey.shade800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractivePanel() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GestureDetector(
+          onPanStart: (details) {
+            if (_showRedFlash) return;
+            RenderBox box = context.findRenderObject() as RenderBox;
+            Offset localPos = box.globalToLocal(details.globalPosition);
+            int? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
+            if (node != null) {
+              setState(() {
+                userPath = [node];
+                currentDragOffset = localPos;
+              });
+              HapticService.light();
+            }
+          },
+          onPanUpdate: (details) {
+            if (_showRedFlash || userPath.isEmpty) return;
+            RenderBox box = context.findRenderObject() as RenderBox;
+            Offset localPos = box.globalToLocal(details.globalPosition);
+            setState(() {
+              currentDragOffset = localPos;
+            });
+            int? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
+            if (node != null && node != userPath.last) {
+              // Smooth undo dragging
+              if (userPath.length >= 2 && node == userPath[userPath.length - 2]) {
+                setState(() {
+                  userPath.removeLast();
+                });
+                HapticService.light();
+              } else {
+                int lastNode = userPath.last;
+                int r1 = lastNode ~/ 4, c1 = lastNode % 4;
+                int r2 = node ~/ 4, c2 = node % 4;
+                if ((r1 - r2).abs() + (c1 - c2).abs() == 1) {
+                  bool isCompletingLoop = (node == userPath.first && userPath.length == targetPattern.length - 1);
+                  if (!userPath.contains(node) || isCompletingLoop) {
+                    setState(() {
+                      userPath.add(node);
+                    });
+                    HapticService.light();
+                  }
+                }
+              }
+            }
+          },
+          onPanEnd: (details) {
+            if (_showRedFlash || userPath.isEmpty) return;
+            setState(() {
+              currentDragOffset = null;
+            });
+            _checkValidation();
+          },
+          child: _buildGridPanel(
+            title: 'GAMBAR DISINI',
+            lines: userPath,
+            color: Colors.blue.shade700,
+            isInteractive: true,
+            liveDragOffset: currentDragOffset,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridPanel({
+    required String title,
+    required List<int> lines,
+    required Color color,
+    required bool isInteractive,
+    Offset? liveDragOffset,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: _showRedFlash && isInteractive
+                ? Colors.red.withOpacity(0.1)
+                : (isInteractive ? Colors.blue.withOpacity(0.1) : color.withOpacity(0.1)),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            title,
+            style: GoogleFonts.fredoka(
+              color: _showRedFlash && isInteractive
+                  ? Colors.red.shade800
+                  : (isInteractive ? Colors.blue.shade800 : color.withOpacity(0.8)),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 0.85,
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _showRedFlash && isInteractive ? const Color(0xFFFFEBEE) : Colors.white,
+                borderRadius: BorderRadius.circular(36),
+                boxShadow: [
+                  BoxShadow(
+                    color: _showRedFlash && isInteractive
+                        ? Colors.red.withOpacity(0.15)
+                        : (isInteractive ? Colors.blue.withOpacity(0.08) : color.withOpacity(0.08)),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                    offset: const Offset(0, 8),
+                  )
+                ],
+                border: Border.all(
+                  color: _showRedFlash && isInteractive
+                      ? Colors.red.withOpacity(0.5)
+                      : (isInteractive ? Colors.blue.withOpacity(0.15) : color.withOpacity(0.15)),
+                  width: _showRedFlash && isInteractive ? 3.0 : 2.0,
+                ),
+              ),
+              child: CustomPaint(
+                painter: GridPainter(
+                  lines: lines,
+                  liveDragOffset: liveDragOffset,
+                  color: _showRedFlash && isInteractive ? Colors.red : color,
+                  isInteractive: isInteractive,
+                  showRedFlash: _showRedFlash && isInteractive,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResetButton() {
+    return TextButton.icon(
+      onPressed: () {
+        if (!_showRedFlash) {
+          setState(() {
+            userPath.clear();
+          });
         }
-      }
-    }
-    return null;
+      },
+      icon: const Icon(Icons.refresh_rounded, size: 22),
+      label: Text(
+        'Ulangi',
+        style: GoogleFonts.fredoka(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.orange.shade800,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
   }
 }
 
-// Data Model Pendukung Koordinat Grid Matrix
-class PointIndex {
-  final int col;
-  final int row;
-  PointIndex(this.col, this.row);
-
-  @override
-  bool operator ==(Object other) => other is PointIndex && col == other.col && row == other.row;
-  @override
-  int get hashCode => Object.hash(col, row);
-}
-
-class LineSegment {
-  final PointIndex start;
-  final PointIndex end;
-  LineSegment(this.start, this.end);
-}
-
-// Custom Painter untuk merender Titik dan Garis Matrix
 class GridPainter extends CustomPainter {
-  final int columns;
-  final int rows;
-  final Color color;
-  final List<LineSegment>? staticSegments;
-  final List<PointIndex>? userPath;
+  final List<int> lines;
   final Offset? liveDragOffset;
+  final Color color;
+  final bool isInteractive;
+  final bool showRedFlash;
 
   GridPainter({
-    required this.columns,
-    required this.rows,
-    required this.color,
-    this.staticSegments,
-    this.userPath,
+    required this.lines,
     this.liveDragOffset,
+    required this.color,
+    required this.isInteractive,
+    this.showRedFlash = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    double cellWidth = size.width / (columns + 1);
-    double cellHeight = size.height / (rows + 1);
+    double cellWidth = size.width / 5;
+    double cellHeight = size.height / 5;
 
-    Paint linePaint = Paint()
-      ..color = color.withOpacity(0.8)
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
+    Offset getOffset(int index) {
+      int r = index ~/ 4;
+      int c = index % 4;
+      return Offset(cellWidth * (c + 1), cellHeight * (r + 1));
+    }
 
-    // 1. Gambar Garis Referensi Kunci Jawaban (jika ada di sisi kiri)
-    if (staticSegments != null) {
-      for (var seg in staticSegments!) {
-        Offset p1 = Offset(cellWidth * (seg.start.col + 1), cellHeight * (seg.start.row + 1));
-        Offset p2 = Offset(cellWidth * (seg.end.col + 1), cellHeight * (seg.end.row + 1));
-        canvas.drawLine(p1, p2, linePaint);
+    // 1. Draw static segments or user-drawn path lines
+    if (lines.isNotEmpty) {
+      final linePaint = Paint()
+        ..color = showRedFlash
+            ? Colors.red
+            : (isInteractive ? Colors.blue.shade600 : color)
+        ..strokeWidth = 14
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+
+      final path = Path();
+      path.moveTo(getOffset(lines.first).dx, getOffset(lines.first).dy);
+      for (int i = 1; i < lines.length; i++) {
+        Offset next = getOffset(lines[i]);
+        path.lineTo(next.dx, next.dy);
+      }
+      canvas.drawPath(path, linePaint);
+
+      // Draw transition line to current drag position
+      if (isInteractive && liveDragOffset != null) {
+        final activePaint = Paint()
+          ..color = showRedFlash
+              ? Colors.red.withOpacity(0.5)
+              : Colors.blue.shade300.withOpacity(0.6)
+          ..strokeWidth = 14
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(getOffset(lines.last), liveDragOffset!, activePaint);
       }
     }
 
-    // 2. Gambar Jalur Garis Hasil Input Sentuhan User (Sisi Kanan)
-    if (userPath != null && userPath!.isNotEmpty) {
-      Paint userLinePaint = Paint()
-        ..color = Colors.blue.shade700
-        ..strokeWidth = 6
-        ..strokeCap = StrokeCap.round;
+    // 2. Draw Simpul Bulatan Titik Grid (Rendering Nodes)
+    final dotOuterPaint = Paint()
+      ..color = showRedFlash ? Colors.red : color;
+    final dotInnerPaint = Paint()
+      ..color = Colors.white.withOpacity(0.35);
+    final dotGlossPaint = Paint()
+      ..color = Colors.white.withOpacity(0.5);
 
-      for (int i = 0; i < userPath!.length - 1; i++) {
-        Offset p1 = Offset(cellWidth * (userPath![i].col + 1), cellHeight * (userPath![i].row + 1));
-        Offset p2 = Offset(cellWidth * (userPath![i + 1].col + 1), cellHeight * (userPath![i + 1].row + 1));
-        canvas.drawLine(p1, p2, userLinePaint);
-      }
-
-      // Gambar garis transisi drag saat jari masih bergeser
-      if (liveDragOffset != null) {
-        Offset lastNodeOffset = Offset(
-          cellWidth * (userPath!.last.col + 1),
-          cellHeight * (userPath!.last.row + 1),
-        );
-        canvas.drawLine(lastNodeOffset, liveDragOffset!, userLinePaint..color = Colors.blue.withOpacity(0.5));
-      }
-    }
-
-    // 3. Gambar Simpul Bulatan Titik Grid Matrix (Rendering Nodes)
-    Paint dotPaint = Paint()..color = color;
-    for (int c = 0; c < columns; c++) {
-      for (int r = 0; r < rows; r++) {
-        Offset nodeCenter = Offset(cellWidth * (c + 1), cellHeight * (r + 1));
-        canvas.drawCircle(nodeCenter, 8, dotPaint);
-      }
+    for (int i = 0; i < 16; i++) {
+      Offset center = getOffset(i);
+      // Outer colored circle
+      canvas.drawCircle(center, 22, dotOuterPaint);
+      // Inner glass/gloss ring
+      canvas.drawCircle(center, 18, dotInnerPaint);
+      // Small gloss highlight reflection on top-left
+      canvas.drawCircle(center.translate(-6, -6), 6, dotGlossPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant GridPainter oldDelegate) => true;
 }
