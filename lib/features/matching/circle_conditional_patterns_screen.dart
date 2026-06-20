@@ -1,5 +1,5 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
@@ -19,31 +19,18 @@ class CircleConditionalPatternsScreen extends ConsumerStatefulWidget {
 
 enum CircleColor { yellow, green, blue, orange }
 
-enum LinePattern { vertical, horizontal, diagonalUpRight, diagonalDownRight }
-
-class ClassifiedLine {
-  final Offset start;
-  final Offset end;
-  final LinePattern pattern;
-
-  ClassifiedLine({
-    required this.start,
-    required this.end,
-    required this.pattern,
-  });
-}
-
 class CircleItem {
   final int id;
   final CircleColor colorType;
   bool isCorrect;
-  List<ClassifiedLine> currentLines;
+  String? placedPattern; // 'x', '+', '||', '='
 
   CircleItem({
     required this.id,
     required this.colorType,
     this.isCorrect = false,
-  }) : currentLines = [];
+    this.placedPattern,
+  });
 
   Color get color {
     switch (colorType) {
@@ -57,19 +44,13 @@ class CircleItem {
         return const Color(0xFFEF5350);
     }
   }
-
-  CircleColor get requiredColor {
-    return colorType;
-  }
 }
 
 class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditionalPatternsScreen> {
   late List<CircleItem> _circles;
 
-  // Active drawing tracking
-  int? _drawingCircleId;
-  Offset? _dragStart;
-  Offset? _dragCurrent;
+  @visibleForTesting
+  List<CircleItem> get circles => _circles;
 
   @override
   void initState() {
@@ -98,168 +79,73 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
     });
   }
 
-  void _handlePanStart(int id, Offset localPos) {
+  void _resetLevel() {
+    setState(() {
+      _initLevel();
+    });
+  }
+
+  void _handlePatternDrop(int id, String patternType) {
     final item = _circles.firstWhere((c) => c.id == id);
     if (item.isCorrect) return;
 
-    HapticService.light();
-    setState(() {
-      _drawingCircleId = id;
-      _dragStart = localPos;
-      _dragCurrent = localPos;
-    });
-  }
-
-  void _handlePanUpdate(int id, Offset localPos) {
-    if (_drawingCircleId != id) return;
-    setState(() {
-      _dragCurrent = localPos;
-    });
-  }
-
-  void _handlePanEnd(int id, Size size) {
-    if (_drawingCircleId != id || _dragStart == null || _dragCurrent == null) return;
-
-    final item = _circles.firstWhere((c) => c.id == id);
-    final w = size.width;
-    final h = size.height;
-
-    final dx = _dragCurrent!.dx - _dragStart!.dx;
-    final dy = _dragCurrent!.dy - _dragStart!.dy;
-    final distance = sqrt(dx * dx + dy * dy);
-
-    // Minimum drag distance to register a line (avoiding accidental taps)
-    if (distance > 15.0) {
-      // Normalize coordinate metrics (0.0 to 1.0)
-      final normStart = Offset(_dragStart!.dx / w, _dragStart!.dy / h);
-      final normEnd = Offset(_dragCurrent!.dx / w, _dragCurrent!.dy / h);
-      final normDx = normEnd.dx - normStart.dx;
-      final normDy = normEnd.dy - normStart.dy;
-
-      LinePattern? pattern;
-      final absDx = normDx.abs();
-      final absDy = normDy.abs();
-
-      if (absDy > absDx * 1.6) {
-        pattern = LinePattern.vertical;
-      } else if (absDx > absDy * 1.6) {
-        pattern = LinePattern.horizontal;
-      } else if (absDx > 0.45 * absDy && absDy > 0.45 * absDx) {
-        if (normDx * normDy < 0) {
-          pattern = LinePattern.diagonalUpRight; // /
-        } else {
-          pattern = LinePattern.diagonalDownRight; // \
-        }
-      }
-
-      if (pattern != null) {
-        setState(() {
-          item.currentLines.add(ClassifiedLine(
-            start: normStart,
-            end: normEnd,
-            pattern: pattern!,
-          ));
-        });
-
-        // Trigger validation if we have reached exactly 2 lines
-        if (item.currentLines.length == 2) {
-          _validateCircle(item);
-        } else {
-          HapticService.light();
-        }
-      } else {
-        HapticService.failure();
-      }
-    } else {
-      HapticService.failure();
-    }
-
-    setState(() {
-      _drawingCircleId = null;
-      _dragStart = null;
-      _dragCurrent = null;
-    });
-  }
-
-  void _validateCircle(CircleItem item) {
-    final line1 = item.currentLines[0];
-    final line2 = item.currentLines[1];
-    final pat1 = line1.pattern;
-    final pat2 = line2.pattern;
-
-    bool isMatch = false;
-
+    // Check validation:
+    // Yellow circle -> Hanya menerima 'x'
+    // Green circle -> Hanya menerima '+'
+    // Blue circle -> Hanya menerima '||'
+    // Orange circle -> Hanya menerima '='
+    bool isCorrect = false;
     switch (item.colorType) {
-      case CircleColor.yellow: // Silang (X)
-        // Must contain 1 diagonal up-right and 1 diagonal down-right
-        isMatch = (pat1 == LinePattern.diagonalUpRight && pat2 == LinePattern.diagonalDownRight) ||
-                  (pat1 == LinePattern.diagonalDownRight && pat2 == LinePattern.diagonalUpRight);
+      case CircleColor.yellow:
+        isCorrect = (patternType == 'x');
         break;
-
-      case CircleColor.green: // Plus (+)
-        // Must contain 1 vertical and 1 horizontal
-        isMatch = (pat1 == LinePattern.vertical && pat2 == LinePattern.horizontal) ||
-                  (pat1 == LinePattern.horizontal && pat2 == LinePattern.vertical);
+      case CircleColor.green:
+        isCorrect = (patternType == '+');
         break;
-
-      case CircleColor.blue: // Vertikal Sejajar (||)
-        // Both vertical, separated horizontally
-        if (pat1 == LinePattern.vertical && pat2 == LinePattern.vertical) {
-          final midX1 = (line1.start.dx + line1.end.dx) / 2;
-          final midX2 = (line2.start.dx + line2.end.dx) / 2;
-          isMatch = (midX1 < 0.5 && midX2 > 0.5) || (midX1 > 0.5 && midX2 < 0.5);
-        }
+      case CircleColor.blue:
+        isCorrect = (patternType == '||');
         break;
-
-      case CircleColor.orange: // Horizontal Sejajar (=)
-        // Both horizontal, separated vertically
-        if (pat1 == LinePattern.horizontal && pat2 == LinePattern.horizontal) {
-          final midY1 = (line1.start.dy + line1.end.dy) / 2;
-          final midY2 = (line2.start.dy + line2.end.dy) / 2;
-          isMatch = (midY1 < 0.5 && midY2 > 0.5) || (midY1 > 0.5 && midY2 < 0.5);
-        }
+      case CircleColor.orange:
+        isCorrect = (patternType == '=');
         break;
     }
 
-    if (isMatch) {
+    if (isCorrect) {
       SoundService.playSuccess();
       HapticService.success();
       setState(() {
         item.isCorrect = true;
-      });
+        item.placedPattern = patternType;
 
-      // Check level completion
-      if (_circles.every((c) => c.isCorrect)) {
-        _onLevelComplete();
-      }
-    } else {
-      HapticService.failure();
-      // On failure, clear lines to let child redraw
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          setState(() {
-            item.currentLines.clear();
-          });
+        if (_circles.every((c) => c.isCorrect)) {
+          gameWin();
         }
       });
+    } else {
+      HapticFeedback.lightImpact();
+      SoundService.playError();
     }
+  }
+
+  void gameWin() {
+    _onLevelComplete();
   }
 
   void _onLevelComplete() async {
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
     try {
-      await UserService.updateProgress(30);
+      await UserService.updateProgress(widget.levelId);
     } catch (e) {
-      debugPrint('Cloud progress update failed for level 30: $e');
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
     }
 
     if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      nextLevelId: 31, // Next level stage placeholder
+      nextLevelId: widget.levelId + 1,
       title: 'Hore, Kamu Juara!',
-      message: 'Kamu berhasil menggambar semua pola garis kompleks dengan benar!',
+      message: 'Kamu berhasil memasangkan semua pola bentuk ke kotak warna yang sesuai!',
     );
   }
 
@@ -272,7 +158,6 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
           children: [
             _buildHeader(),
             _buildInstruction(),
-            // Guide circles legend
             _buildRulesLegend(),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
@@ -281,35 +166,34 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
             // Play Area Grid
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
                 child: GridView.builder(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 4,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 14,
                     childAspectRatio: 1.0,
                   ),
                   itemCount: _circles.length,
                   itemBuilder: (context, index) {
                     final item = _circles[index];
-                    final isDrawingThis = _drawingCircleId == item.id;
 
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final size = Size(constraints.maxWidth, constraints.maxHeight);
+                    return DragTarget<String>(
+                      key: ValueKey('circle_target_$index'),
+                      onWillAcceptWithDetails: (details) {
+                        return !item.isCorrect;
+                      },
+                      onAcceptWithDetails: (details) {
+                        _handlePatternDrop(item.id, details.data);
+                      },
+                      builder: (context, candidateData, rejectedData) {
+                        final bool isHovered = candidateData.isNotEmpty;
 
-                        return GestureDetector(
-                          onPanStart: (details) => _handlePanStart(item.id, details.localPosition),
-                          onPanUpdate: (details) => _handlePanUpdate(item.id, details.localPosition),
-                          onPanEnd: (details) => _handlePanEnd(item.id, size),
-                          child: CustomPaint(
-                            painter: CircleCellPainter(
-                              item: item,
-                              isDrawing: isDrawingThis,
-                              dragStart: _dragStart,
-                              dragCurrent: _dragCurrent,
-                            ),
+                        return CustomPaint(
+                          painter: CircleCellPainter(
+                            item: item,
+                            isHovered: isHovered,
                           ),
                         );
                       },
@@ -318,6 +202,27 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildPartsBin(),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton.icon(
+                onPressed: _resetLevel,
+                icon: const Icon(Icons.refresh_rounded, color: Colors.orange, size: 22),
+                label: const Text(
+                  'Ulangi',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -362,11 +267,11 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.gesture_rounded, color: Colors.indigo, size: 24),
+          const Icon(Icons.rule_rounded, color: Colors.indigo, size: 24),
           const SizedBox(width: 12),
           Flexible(
             child: Text(
-              'Buat garis yang tepat pada setiap warna sesuai contoh!',
+              'Seret pola dari palet bawah ke kotak warna yang cocok!',
               style: GoogleFonts.fredoka(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -392,42 +297,17 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildLegendCell(CircleColor.yellow, 'X'),
-          _buildLegendCell(CircleColor.green, '+'),
-          _buildLegendCell(CircleColor.blue, '||'),
-          _buildLegendCell(CircleColor.orange, '='),
+          _buildLegendCell(CircleColor.yellow, 'x', 'x'),
+          _buildLegendCell(CircleColor.green, '+', '+'),
+          _buildLegendCell(CircleColor.blue, '||', '||'),
+          _buildLegendCell(CircleColor.orange, '=', '='),
         ],
       ),
     );
   }
 
-  Widget _buildLegendCell(CircleColor colorType, String label) {
-    // Generate dummy completed item for legend visual representation
-    final dummyItem = CircleItem(id: -1, colorType: colorType);
-    dummyItem.isCorrect = true;
-
-    // Prefill the lines based on the type
-    if (colorType == CircleColor.yellow) {
-      dummyItem.currentLines = [
-        ClassifiedLine(start: const Offset(0.15, 0.15), end: const Offset(0.85, 0.85), pattern: LinePattern.diagonalDownRight),
-        ClassifiedLine(start: const Offset(0.15, 0.85), end: const Offset(0.85, 0.15), pattern: LinePattern.diagonalUpRight),
-      ];
-    } else if (colorType == CircleColor.green) {
-      dummyItem.currentLines = [
-        ClassifiedLine(start: const Offset(0.5, 0.05), end: const Offset(0.5, 0.95), pattern: LinePattern.vertical),
-        ClassifiedLine(start: const Offset(0.05, 0.5), end: const Offset(0.95, 0.5), pattern: LinePattern.horizontal),
-      ];
-    } else if (colorType == CircleColor.blue) {
-      dummyItem.currentLines = [
-        ClassifiedLine(start: const Offset(0.28, 0.05), end: const Offset(0.28, 0.95), pattern: LinePattern.vertical),
-        ClassifiedLine(start: const Offset(0.72, 0.05), end: const Offset(0.72, 0.95), pattern: LinePattern.vertical),
-      ];
-    } else {
-      dummyItem.currentLines = [
-        ClassifiedLine(start: const Offset(0.05, 0.28), end: const Offset(0.95, 0.28), pattern: LinePattern.horizontal),
-        ClassifiedLine(start: const Offset(0.05, 0.72), end: const Offset(0.95, 0.72), pattern: LinePattern.horizontal),
-      ];
-    }
+  Widget _buildLegendCell(CircleColor colorType, String pattern, String label) {
+    final dummyItem = CircleItem(id: -1, colorType: colorType, isCorrect: true, placedPattern: pattern);
 
     return Column(
       children: [
@@ -437,7 +317,6 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
           child: CustomPaint(
             painter: CircleCellPainter(
               item: dummyItem,
-              isDrawing: false,
             ),
           ),
         ),
@@ -453,19 +332,118 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
       ],
     );
   }
+
+  Widget _buildPartsBin() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.015),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'PALET PILIHAN',
+            style: GoogleFonts.fredoka(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.indigo.shade600,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildDraggablePattern('x', 'Silang'),
+              _buildDraggablePattern('+', 'Plus'),
+              _buildDraggablePattern('||', 'Dua Vertikal'),
+              _buildDraggablePattern('=', 'Dua Horizontal'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDraggablePattern(String type, String label) {
+    return Draggable<String>(
+      key: ValueKey('draggable_pattern_$type'),
+      data: type,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.shade400, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+          ),
+          child: CustomPaint(painter: PartsBinItemPainter(type)),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _buildPatternPiece(type, label),
+      ),
+      child: _buildPatternPiece(type, label),
+    );
+  }
+
+  Widget _buildPatternPiece(String type, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.shade300, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: CustomPaint(painter: PartsBinItemPainter(type)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.fredoka(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class CircleCellPainter extends CustomPainter {
   final CircleItem item;
-  final bool isDrawing;
-  final Offset? dragStart;
-  final Offset? dragCurrent;
+  final bool isHovered;
 
   CircleCellPainter({
     required this.item,
-    required this.isDrawing,
-    this.dragStart,
-    this.dragCurrent,
+    this.isHovered = false,
   });
 
   @override
@@ -475,7 +453,7 @@ class CircleCellPainter extends CustomPainter {
 
     // 1. Draw Circle Fill Background
     final fillPaint = Paint()
-      ..color = item.color.withOpacity(0.85)
+      ..color = item.color.withOpacity(isHovered ? 0.95 : 0.85)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, fillPaint);
 
@@ -490,41 +468,85 @@ class CircleCellPainter extends CustomPainter {
 
     // 3. Draw Circle White Border
     final strokePaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..strokeWidth = 2.5
+      ..color = isHovered ? Colors.amberAccent : Colors.white.withOpacity(0.9)
+      ..strokeWidth = isHovered ? 3.5 : 2.5
       ..style = PaintingStyle.stroke;
     canvas.drawCircle(center, radius, strokePaint);
 
-    // 4. Draw Lines already correct or draft
-    final linePaint = Paint()
-      ..color = item.isCorrect ? const Color(0xFF212121) : const Color(0xFF37474F)
-      ..strokeWidth = item.isCorrect ? 4.5 : 3.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    for (var line in item.currentLines) {
-      final startPixel = Offset(line.start.dx * size.width, line.start.dy * size.height);
-      final endPixel = Offset(line.end.dx * size.width, line.end.dy * size.height);
-      canvas.drawLine(startPixel, endPixel, linePaint);
-    }
-
-    // 5. Draw Active Line Drawing Preview
-    if (isDrawing && dragStart != null && dragCurrent != null) {
-      final previewPaint = Paint()
-        ..color = const Color(0xFF37474F).withOpacity(0.6)
-        ..strokeWidth = 3.5
+    // 4. Draw Placed Pattern
+    if (item.isCorrect && item.placedPattern != null) {
+      final linePaint = Paint()
+        ..color = const Color(0xFF212121)
+        ..strokeWidth = 4.5
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
-      canvas.drawLine(dragStart!, dragCurrent!, previewPaint);
+      double w = size.width;
+      double h = size.height;
+
+      switch (item.placedPattern) {
+        case 'x':
+          canvas.drawLine(Offset(w * 0.2, h * 0.2), Offset(w * 0.8, h * 0.8), linePaint);
+          canvas.drawLine(Offset(w * 0.2, h * 0.8), Offset(w * 0.8, h * 0.2), linePaint);
+          break;
+        case '+':
+          canvas.drawLine(Offset(w * 0.5, h * 0.15), Offset(w * 0.5, h * 0.85), linePaint);
+          canvas.drawLine(Offset(w * 0.15, h * 0.5), Offset(w * 0.85, h * 0.5), linePaint);
+          break;
+        case '||':
+          canvas.drawLine(Offset(w * 0.35, h * 0.15), Offset(w * 0.35, h * 0.85), linePaint);
+          canvas.drawLine(Offset(w * 0.65, h * 0.15), Offset(w * 0.65, h * 0.85), linePaint);
+          break;
+        case '=':
+          canvas.drawLine(Offset(w * 0.15, h * 0.35), Offset(w * 0.85, h * 0.35), linePaint);
+          canvas.drawLine(Offset(w * 0.15, h * 0.65), Offset(w * 0.85, h * 0.65), linePaint);
+          break;
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant CircleCellPainter oldDelegate) {
     return oldDelegate.item.isCorrect != item.isCorrect ||
-        oldDelegate.item.currentLines.length != item.currentLines.length ||
-        oldDelegate.isDrawing != isDrawing ||
-        oldDelegate.dragCurrent != dragCurrent;
+        oldDelegate.isHovered != isHovered ||
+        oldDelegate.item.placedPattern != item.placedPattern;
   }
+}
+
+class PartsBinItemPainter extends CustomPainter {
+  final String patternType;
+  PartsBinItemPainter(this.patternType);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF263238)
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round;
+
+    double w = size.width;
+    double h = size.height;
+
+    switch (patternType) {
+      case 'x':
+        canvas.drawLine(Offset(w * 0.22, h * 0.22), Offset(w * 0.78, h * 0.78), paint);
+        canvas.drawLine(Offset(w * 0.22, h * 0.78), Offset(w * 0.78, h * 0.22), paint);
+        break;
+      case '+':
+        canvas.drawLine(Offset(w * 0.5, h * 0.18), Offset(w * 0.5, h * 0.82), paint);
+        canvas.drawLine(Offset(w * 0.18, h * 0.5), Offset(w * 0.82, h * 0.5), paint);
+        break;
+      case '||':
+        canvas.drawLine(Offset(w * 0.36, h * 0.18), Offset(w * 0.36, h * 0.82), paint);
+        canvas.drawLine(Offset(w * 0.64, h * 0.18), Offset(w * 0.64, h * 0.82), paint);
+        break;
+      case '=':
+        canvas.drawLine(Offset(w * 0.18, h * 0.36), Offset(w * 0.82, h * 0.36), paint);
+        canvas.drawLine(Offset(w * 0.18, h * 0.64), Offset(w * 0.82, h * 0.64), paint);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
