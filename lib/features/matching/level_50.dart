@@ -20,6 +20,7 @@ class Level50Screen extends ConsumerStatefulWidget {
 class _Level50ScreenState extends ConsumerState<Level50Screen> {
   final List<int> _gridNumbers = [];
   final List<int?> _userColors = List.generate(100, (_) => null);
+  int? _selectedColorNumber;
   bool _isSolved = false;
 
   @visibleForTesting
@@ -27,6 +28,9 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
 
   @visibleForTesting
   List<int?> get userColors => _userColors;
+
+  @visibleForTesting
+  int? get selectedColorNumber => _selectedColorNumber;
 
   @override
   void initState() {
@@ -41,6 +45,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
       _gridNumbers.add(random.nextInt(6) + 1);
     }
     _userColors.fillRange(0, 100, null);
+    _selectedColorNumber = null;
     _isSolved = false;
   }
 
@@ -73,15 +78,39 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
     if (_isSolved) return;
     if (_userColors[index] != null) return; // Already colored
 
-    HapticFeedback.lightImpact();
-    SoundService.playSuccess();
+    if (_selectedColorNumber == null) {
+      // Play alert/vibration to indicate no color selected
+      HapticFeedback.lightImpact();
+      SoundService.playError();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pilih warna terlebih dahulu di palet bawah!',
+            style: GoogleFonts.fredoka(fontWeight: FontWeight.w600),
+          ),
+          duration: const Duration(seconds: 1),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
-    setState(() {
-      _userColors[index] = _gridNumbers[index];
-      if (_userColors.every((val) => val != null)) {
-        gameWin();
-      }
-    });
+    final int cellNum = _gridNumbers[index];
+    if (_selectedColorNumber == cellNum) {
+      // Correct color selected
+      HapticFeedback.lightImpact();
+      SoundService.playSuccess();
+      setState(() {
+        _userColors[index] = cellNum;
+        if (_userColors.every((val) => val != null)) {
+          gameWin();
+        }
+      });
+    } else {
+      // Incorrect color selected
+      HapticFeedback.lightImpact();
+      SoundService.playError();
+    }
   }
 
   void gameWin() {
@@ -121,8 +150,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
             _buildHeader(),
             _buildInstruction(),
             const SizedBox(height: 8),
-            _buildLegend(),
-            const SizedBox(height: 8),
+            // Main Grid View area
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -194,6 +222,10 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
               ),
             ),
             const SizedBox(height: 12),
+            // Color Picker Palette at the bottom
+            _buildInteractivePalette(),
+            const SizedBox(height: 12),
+            // Reset button at the bottom center
             Center(
               child: TextButton.icon(
                 onPressed: _resetLevel,
@@ -260,7 +292,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
           const SizedBox(width: 12),
           Flexible(
             child: Text(
-              'Ketuk kotak angka untuk mewarnai sesuai dengan kode warna petunjuk!',
+              'Pilih warna di palet bawah dulu, lalu warnai kotak angka yang cocok!',
               style: GoogleFonts.fredoka(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -274,7 +306,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildInteractivePalette() {
     final List<Map<String, dynamic>> legendItems = [
       {'num': 1, 'name': 'Hijau', 'color': const Color(0xFF4CAF50)},
       {'num': 2, 'name': 'Biru', 'color': const Color(0xFF2196F3)},
@@ -295,7 +327,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
       child: Column(
         children: [
           Text(
-            'PANDUAN WARNA',
+            'PALET PILIHAN WARNA',
             style: GoogleFonts.fredoka(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -310,45 +342,63 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
               final int num = item['num'] as int;
               final Color color = item['color'] as Color;
               final String name = item['name'] as String;
+              final bool isSelected = _selectedColorNumber == num;
               final bool isYellow = num == 5;
 
-              return Column(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+              return GestureDetector(
+                key: ValueKey('palette_color_$num'),
+                onTap: () {
+                  setState(() {
+                    _selectedColorNumber = num;
+                  });
+                  HapticFeedback.lightImpact();
+                },
+                child: AnimatedScale(
+                  scale: isSelected ? 1.15 : 1.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Column(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: isSelected
+                              ? Border.all(color: Colors.black87, width: 3.0)
+                              : Border.all(color: Colors.white, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isSelected ? Colors.black26 : color.withOpacity(0.3),
+                              blurRadius: isSelected ? 6 : 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$num',
-                        style: GoogleFonts.fredoka(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isYellow ? Colors.black87 : Colors.white,
+                        child: Center(
+                          child: Text(
+                            '$num',
+                            style: GoogleFonts.fredoka(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isYellow ? Colors.black87 : Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        name,
+                        style: GoogleFonts.fredoka(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          color: isSelected ? Colors.black87 : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    name,
-                    style: GoogleFonts.fredoka(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
+                ),
               );
             }).toList(),
           ),
