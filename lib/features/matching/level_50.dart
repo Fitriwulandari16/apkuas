@@ -1,7 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:apkuas/core/services/user_service.dart';
@@ -15,65 +18,81 @@ class Level50Screen extends ConsumerStatefulWidget {
 }
 
 class _Level50ScreenState extends ConsumerState<Level50Screen> {
-  // Orange loop target pattern path coordinates (index 0 to 15)
-  final List<int> targetPattern = [12, 8, 4, 0, 1, 5, 9, 10, 6, 2, 3, 7, 11, 15, 14, 13, 12];
+  final List<int> _gridNumbers = [];
+  final List<int?> _userColors = List.generate(100, (_) => null);
+  bool _isSolved = false;
 
-  // User drawn path node indices
-  List<int> userPath = [];
-  Offset? currentDragOffset;
-  bool _showRedFlash = false;
+  @visibleForTesting
+  List<int> get gridNumbers => _gridNumbers;
+
+  @visibleForTesting
+  List<int?> get userColors => _userColors;
 
   @override
   void initState() {
     super.initState();
-    userPath = [];
-    currentDragOffset = null;
-    _showRedFlash = false;
+    _generateGrid();
+  }
+
+  void _generateGrid() {
+    final random = Random();
+    _gridNumbers.clear();
+    for (int i = 0; i < 100; i++) {
+      _gridNumbers.add(random.nextInt(6) + 1);
+    }
+    _userColors.fillRange(0, 100, null);
+    _isSolved = false;
   }
 
   void _resetLevel() {
     setState(() {
-      userPath.clear();
-      currentDragOffset = null;
-      _showRedFlash = false;
+      _generateGrid();
     });
   }
 
-  void _triggerFlashRed() {
+  Color _getColorForNumber(int num) {
+    switch (num) {
+      case 1:
+        return const Color(0xFF4CAF50); // Hijau
+      case 2:
+        return const Color(0xFF2196F3); // Biru
+      case 3:
+        return const Color(0xFFE53935); // Merah
+      case 4:
+        return const Color(0xFF9C27B0); // Ungu
+      case 5:
+        return const Color(0xFFFFEB3B); // Kuning
+      case 6:
+        return const Color(0xFFFF9800); // Oranye
+      default:
+        return Colors.white;
+    }
+  }
+
+  void _handleCellTap(int index) {
+    if (_isSolved) return;
+    if (_userColors[index] != null) return; // Already colored
+
+    HapticFeedback.lightImpact();
+    SoundService.playSuccess();
+
     setState(() {
-      _showRedFlash = true;
-    });
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        setState(() {
-          _showRedFlash = false;
-          userPath.clear();
-        });
+      _userColors[index] = _gridNumbers[index];
+      if (_userColors.every((val) => val != null)) {
+        gameWin();
       }
     });
   }
 
-  bool _isListEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
-
-  void _checkValidation() {
-    bool matchesForward = _isListEqual(userPath, targetPattern);
-    bool matchesBackward = _isListEqual(userPath, targetPattern.reversed.toList());
-
-    if (matchesForward || matchesBackward) {
-      _onLevelComplete();
-    } else {
-      HapticService.failure();
-      _triggerFlashRed();
-    }
+  void gameWin() {
+    _onLevelComplete();
   }
 
   void _onLevelComplete() async {
+    setState(() {
+      _isSolved = true;
+    });
+
     ref.read(progressProvider.notifier).completeLevel(50);
 
     try {
@@ -92,23 +111,6 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
     );
   }
 
-  int? _getNodeFromOffset(Offset offset, double width, double height) {
-    double cellWidth = width / 5;
-    double cellHeight = height / 5;
-    double tolerance = 35.0; // Touch radius snap tolerance
-
-    for (int r = 0; r < 4; r++) {
-      for (int c = 0; c < 4; c++) {
-        double nodeX = cellWidth * (c + 1);
-        double nodeY = cellHeight * (r + 1);
-        if ((offset.dx - nodeX).abs() < tolerance && (offset.dy - nodeY).abs() < tolerance) {
-          return r * 4 + c;
-        }
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,46 +118,100 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
             _buildHeader(),
-            // Instruction Box
             _buildInstruction(),
-            const SizedBox(height: 12),
-            // Side-by-side grids layout
+            const SizedBox(height: 8),
+            _buildLegend(),
+            const SizedBox(height: 8),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  children: [
-                    // LEFT COLUMN: EXAMPLE
-                    Expanded(
-                      child: _buildGridPanel(
-                        title: 'CONTOH',
-                        lines: targetPattern,
-                        color: Colors.orange.shade700,
-                        isInteractive: false,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 3.0),
+                  ),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: GridView.builder(
+                        key: const ValueKey('level50_grid'),
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 10,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
+                        itemCount: 100,
+                        itemBuilder: (context, index) {
+                          final number = _gridNumbers[index];
+                          final coloredNum = _userColors[index];
+                          final bool isColored = coloredNum != null;
+                          final Color cellColor = isColored ? _getColorForNumber(coloredNum) : Colors.white;
+                          final Color textColor = isColored 
+                              ? (coloredNum == 5 ? Colors.black87 : Colors.white) 
+                              : Colors.grey.shade700;
+
+                          return GestureDetector(
+                            key: ValueKey('grid_cell_$index'),
+                            onTap: () => _handleCellTap(index),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: BoxDecoration(
+                                color: cellColor,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isColored ? cellColor.withOpacity(0.8) : Colors.grey.shade300,
+                                  width: 1.5,
+                                ),
+                                boxShadow: isColored ? [
+                                  BoxShadow(
+                                    color: cellColor.withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ] : [],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$number',
+                                  style: GoogleFonts.fredoka(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    // Vertical divider line
-                    Container(
-                      width: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 40, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    // RIGHT COLUMN: DRAWING AREA
-                    Expanded(
-                      child: _buildInteractivePanel(),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            // Reset Button
-            _buildResetButton(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton.icon(
+                onPressed: _resetLevel,
+                icon: const Icon(Icons.refresh_rounded, color: Colors.orange, size: 22),
+                label: const Text(
+                  'Ulangi',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -164,11 +220,11 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: CilikTheme.tealTua),
+            icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
             onPressed: () => Navigator.pop(context),
           ),
           Expanded(
@@ -176,7 +232,7 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
               'Level 50',
               textAlign: TextAlign.center,
               style: GoogleFonts.fredoka(
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: CilikTheme.tealTua,
               ),
@@ -190,32 +246,27 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
 
   Widget _buildInstruction() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.gesture_rounded, color: Colors.orange, size: 28),
+          const Icon(Icons.color_lens_rounded, color: Colors.indigo, size: 24),
           const SizedBox(width: 12),
           Flexible(
             child: Text(
-              'Hubungkan titik-titik di kanan untuk meniru pola contoh di sebelah kiri!',
+              'Ketuk kotak angka untuk mewarnai sesuai dengan kode warna petunjuk!',
               style: GoogleFonts.fredoka(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.blueGrey.shade800,
+                color: Colors.indigo.shade800,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -223,247 +274,86 @@ class _Level50ScreenState extends ConsumerState<Level50Screen> {
     );
   }
 
-  Widget _buildInteractivePanel() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return GestureDetector(
-          onPanStart: (details) {
-            if (_showRedFlash) return;
-            RenderBox box = context.findRenderObject() as RenderBox;
-            Offset localPos = box.globalToLocal(details.globalPosition);
-            int? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
-            if (node != null) {
-              setState(() {
-                userPath = [node];
-                currentDragOffset = localPos;
-              });
-              HapticService.light();
-            }
-          },
-          onPanUpdate: (details) {
-            if (_showRedFlash || userPath.isEmpty) return;
-            RenderBox box = context.findRenderObject() as RenderBox;
-            Offset localPos = box.globalToLocal(details.globalPosition);
-            setState(() {
-              currentDragOffset = localPos;
-            });
-            int? node = _getNodeFromOffset(localPos, constraints.maxWidth, constraints.maxHeight);
-            if (node != null && node != userPath.last) {
-              // Smooth undo dragging
-              if (userPath.length >= 2 && node == userPath[userPath.length - 2]) {
-                setState(() {
-                  userPath.removeLast();
-                });
-                HapticService.light();
-              } else {
-                int lastNode = userPath.last;
-                int r1 = lastNode ~/ 4, c1 = lastNode % 4;
-                int r2 = node ~/ 4, c2 = node % 4;
-                if ((r1 - r2).abs() + (c1 - c2).abs() == 1) {
-                  bool isCompletingLoop = (node == userPath.first && userPath.length == targetPattern.length - 1);
-                  if (!userPath.contains(node) || isCompletingLoop) {
-                    setState(() {
-                      userPath.add(node);
-                    });
-                    HapticService.light();
-                  }
-                }
-              }
-            }
-          },
-          onPanEnd: (details) {
-            if (_showRedFlash || userPath.isEmpty) return;
-            setState(() {
-              currentDragOffset = null;
-            });
-            _checkValidation();
-          },
-          child: _buildGridPanel(
-            title: 'GAMBAR DISINI',
-            lines: userPath,
-            color: Colors.blue.shade700,
-            isInteractive: true,
-            liveDragOffset: currentDragOffset,
-          ),
-        );
-      },
-    );
-  }
+  Widget _buildLegend() {
+    final List<Map<String, dynamic>> legendItems = [
+      {'num': 1, 'name': 'Hijau', 'color': const Color(0xFF4CAF50)},
+      {'num': 2, 'name': 'Biru', 'color': const Color(0xFF2196F3)},
+      {'num': 3, 'name': 'Merah', 'color': const Color(0xFFE53935)},
+      {'num': 4, 'name': 'Ungu', 'color': const Color(0xFF9C27B0)},
+      {'num': 5, 'name': 'Kuning', 'color': const Color(0xFFFFEB3B)},
+      {'num': 6, 'name': 'Oranye', 'color': const Color(0xFFFF9800)},
+    ];
 
-  Widget _buildGridPanel({
-    required String title,
-    required List<int> lines,
-    required Color color,
-    required bool isInteractive,
-    Offset? liveDragOffset,
-  }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          decoration: BoxDecoration(
-            color: _showRedFlash && isInteractive
-                ? Colors.red.withOpacity(0.1)
-                : (isInteractive ? Colors.blue.withOpacity(0.1) : color.withOpacity(0.1)),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            title,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'PANDUAN WARNA',
             style: GoogleFonts.fredoka(
-              color: _showRedFlash && isInteractive
-                  ? Colors.red.shade800
-                  : (isInteractive ? Colors.blue.shade800 : color.withOpacity(0.8)),
+              fontSize: 11,
               fontWeight: FontWeight.bold,
-              fontSize: 14,
-              letterSpacing: 1.2,
+              color: Colors.indigo.shade600,
+              letterSpacing: 0.5,
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: AspectRatio(
-            aspectRatio: 0.85,
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _showRedFlash && isInteractive ? const Color(0xFFFFEBEE) : Colors.white,
-                borderRadius: BorderRadius.circular(36),
-                boxShadow: [
-                  BoxShadow(
-                    color: _showRedFlash && isInteractive
-                        ? Colors.red.withOpacity(0.15)
-                        : (isInteractive ? Colors.blue.withOpacity(0.08) : color.withOpacity(0.08)),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                    offset: const Offset(0, 8),
-                  )
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: legendItems.map((item) {
+              final int num = item['num'] as int;
+              final Color color = item['color'] as Color;
+              final String name = item['name'] as String;
+              final bool isYellow = num == 5;
+
+              return Column(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$num',
+                        style: GoogleFonts.fredoka(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isYellow ? Colors.black87 : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    name,
+                    style: GoogleFonts.fredoka(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                 ],
-                border: Border.all(
-                  color: _showRedFlash && isInteractive
-                      ? Colors.red.withOpacity(0.5)
-                      : (isInteractive ? Colors.blue.withOpacity(0.15) : color.withOpacity(0.15)),
-                  width: _showRedFlash && isInteractive ? 3.0 : 2.0,
-                ),
-              ),
-              child: CustomPaint(
-                painter: GridPainter(
-                  lines: lines,
-                  liveDragOffset: liveDragOffset,
-                  color: _showRedFlash && isInteractive ? Colors.red : color,
-                  isInteractive: isInteractive,
-                  showRedFlash: _showRedFlash && isInteractive,
-                ),
-              ),
-            ),
+              );
+            }).toList(),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildResetButton() {
-    return TextButton.icon(
-      onPressed: () {
-        if (!_showRedFlash) {
-          setState(() {
-            userPath.clear();
-          });
-        }
-      },
-      icon: const Icon(Icons.refresh_rounded, size: 22),
-      label: Text(
-        'Ulangi',
-        style: GoogleFonts.fredoka(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.orange.shade800,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        ],
       ),
     );
   }
-}
-
-class GridPainter extends CustomPainter {
-  final List<int> lines;
-  final Offset? liveDragOffset;
-  final Color color;
-  final bool isInteractive;
-  final bool showRedFlash;
-
-  GridPainter({
-    required this.lines,
-    this.liveDragOffset,
-    required this.color,
-    required this.isInteractive,
-    this.showRedFlash = false,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    double cellWidth = size.width / 5;
-    double cellHeight = size.height / 5;
-
-    Offset getOffset(int index) {
-      int r = index ~/ 4;
-      int c = index % 4;
-      return Offset(cellWidth * (c + 1), cellHeight * (r + 1));
-    }
-
-    // 1. Draw static segments or user-drawn path lines
-    if (lines.isNotEmpty) {
-      final linePaint = Paint()
-        ..color = showRedFlash
-            ? Colors.red
-            : (isInteractive ? Colors.blue.shade600 : color)
-        ..strokeWidth = 14
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-
-      final path = Path();
-      path.moveTo(getOffset(lines.first).dx, getOffset(lines.first).dy);
-      for (int i = 1; i < lines.length; i++) {
-        Offset next = getOffset(lines[i]);
-        path.lineTo(next.dx, next.dy);
-      }
-      canvas.drawPath(path, linePaint);
-
-      // Draw transition line to current drag position
-      if (isInteractive && liveDragOffset != null) {
-        final activePaint = Paint()
-          ..color = showRedFlash
-              ? Colors.red.withOpacity(0.5)
-              : Colors.blue.shade300.withOpacity(0.6)
-          ..strokeWidth = 14
-          ..strokeCap = StrokeCap.round;
-        canvas.drawLine(getOffset(lines.last), liveDragOffset!, activePaint);
-      }
-    }
-
-    // 2. Draw Simpul Bulatan Titik Grid (Rendering Nodes)
-    final dotOuterPaint = Paint()
-      ..color = showRedFlash ? Colors.red : color;
-    final dotInnerPaint = Paint()
-      ..color = Colors.white.withOpacity(0.35);
-    final dotGlossPaint = Paint()
-      ..color = Colors.white.withOpacity(0.5);
-
-    for (int i = 0; i < 16; i++) {
-      Offset center = getOffset(i);
-      // Outer colored circle
-      canvas.drawCircle(center, 22, dotOuterPaint);
-      // Inner glass/gloss ring
-      canvas.drawCircle(center, 18, dotInnerPaint);
-      // Small gloss highlight reflection on top-left
-      canvas.drawCircle(center.translate(-6, -6), 6, dotGlossPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant GridPainter oldDelegate) => true;
 }
