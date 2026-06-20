@@ -8,6 +8,7 @@ import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/services/user_service.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DebuggingRowModel {
   final int index;
@@ -59,6 +60,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   void initState() {
     super.initState();
 
+    _shakingArrowIndex = null;
+    _isSolved = false;
+
     // Initialize shake animation (short, finite duration)
     _shakeController = AnimationController(
       vsync: this,
@@ -77,6 +81,22 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     });
 
     _initLevel();
+    _clearCache();
+  }
+
+  Future<void> _clearCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      for (String key in keys) {
+        if (key.contains('level_44') || key.contains('pattern_debugging') || key.contains('arrow_colors')) {
+          await prefs.remove(key);
+          debugPrint('PatternDebuggingScreen: Cleared SharedPreferences cache key: $key');
+        }
+      }
+    } catch (e) {
+      debugPrint('PatternDebuggingScreen: Error clearing SharedPreferences cache: $e');
+    }
   }
 
   @override
@@ -95,6 +115,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         initialColors: [colBlue, colBlue, colYellow, colYellow, colPink, colBlue],
         targetColors: List.from(masterPattern),
         errorIndex: 5,
+        isIdentified: false,
+        isCorrected: false,
+        showError: false,
       ),
       // Row 2: Blue, Blue, [Pink - ERROR], Yellow, Pink, Pink
       DebuggingRowModel(
@@ -102,6 +125,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         initialColors: [colBlue, colBlue, colPink, colYellow, colPink, colPink],
         targetColors: List.from(masterPattern),
         errorIndex: 2,
+        isIdentified: false,
+        isCorrected: false,
+        showError: false,
       ),
       // Row 3: Blue, [Yellow - ERROR], Yellow, Yellow, Pink, Pink
       DebuggingRowModel(
@@ -109,6 +135,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         initialColors: [colBlue, colYellow, colYellow, colYellow, colPink, colPink],
         targetColors: List.from(masterPattern),
         errorIndex: 1,
+        isIdentified: false,
+        isCorrected: false,
+        showError: false,
       ),
       // Row 4: Blue, Blue, Yellow, [Pink - ERROR], Pink, Pink
       DebuggingRowModel(
@@ -116,6 +145,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         initialColors: [colBlue, colBlue, colYellow, colPink, colPink, colPink],
         targetColors: List.from(masterPattern),
         errorIndex: 3,
+        isIdentified: false,
+        isCorrected: false,
+        showError: false,
       ),
     ];
   }
@@ -221,6 +253,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       _isSolved = true;
     });
 
+    // Clear SharedPreferences keys associated with Level 44 progress
+    await _clearCache();
+
     // 1. Mark complete locally in provider
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
@@ -299,7 +334,12 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () async {
+              await _clearCache();
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
           ),
           Expanded(
             child: Text(
