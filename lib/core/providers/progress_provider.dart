@@ -26,16 +26,16 @@ class ProgressNotifier extends Notifier<int> {
   void completeLevel(int levelId) {
     print('DEBUG: Mencoba menyelesaikan Level $levelId. Status saat ini: $state');
     
-    // Tambahkan 10 bintang ke profil
-    ref.read(profileProvider.notifier).addStars(10);
-    
     if (levelId == state) {
+      // Tambahkan 10 bintang ke profil HANYA jika menyelesaikan level baru
+      ref.read(profileProvider.notifier).addStars(10);
+      
       // Buka level berikutnya
       state = state + 1;
       saveProgress();
       print('DEBUG: Level Berhasil Diupdate! Level Terbuka Sekarang: $state');
     } else if (levelId < state) {
-      print('DEBUG: Level ini sudah pernah diselesaikan. Bintang tetap ditambahkan!');
+      print('DEBUG: Level ini sudah pernah diselesaikan. Bintang tidak ditambahkan.');
     }
   }
 

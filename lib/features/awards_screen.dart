@@ -14,10 +14,10 @@ class AwardsScreen extends ConsumerWidget {
     final progress = ref.watch(progressProvider);
     
     // Calculate progress
-    const int totalLevels = 10;
-    final int levelsCleared = progress;
+    const int totalLevels = 50;
+    final int levelsCleared = (progress - 1).clamp(0, totalLevels);
     final double progressPercent = (levelsCleared / totalLevels).clamp(0.0, 1.0);
-    final int levelsLeft = totalLevels - levelsCleared;
+    final int levelsLeft = (totalLevels - levelsCleared).clamp(0, totalLevels);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FBFF),

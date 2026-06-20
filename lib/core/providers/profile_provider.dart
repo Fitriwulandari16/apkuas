@@ -57,8 +57,13 @@ class ProfileNotifier extends Notifier<ProfileState> {
   }
 
   void addStars(int amount) {
-    final newStars = state.totalStars + amount;
+    final newStars = (state.totalStars + amount).clamp(0, 500);
     state = state.copyWith(totalStars: newStars);
     _box.put('totalStars', newStars);
+  }
+
+  void resetStars() {
+    state = state.copyWith(totalStars: 0);
+    _box.put('totalStars', 0);
   }
 }

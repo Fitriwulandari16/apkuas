@@ -89,19 +89,11 @@ class _ParentDashboardScreenState
       ),
     );
 
-    // 1. Reset level & bintang via Riverpod
+    // 1. Reset level via Riverpod
     ref.read(progressProvider.notifier).resetProgress();
 
-    // 2. Reset bintang langsung ke Hive (ProfileNotifier belum punya
-    //    resetStars(), kita tulis langsung ke box yang sama)
-    try {
-      final settingsBox = Hive.box('settings');
-      await settingsBox.put('totalStars', 0);
-      // Invalidate provider agar UI ter-refresh
-      ref.invalidate(profileProvider);
-    } catch (e) {
-      debugPrint('ParentDashboard: Gagal reset bintang: $e');
-    }
+    // 2. Reset bintang via ProfileNotifier
+    ref.read(profileProvider.notifier).resetStars();
 
     // 3. Hapus semua data durasi tracker
     await ParentTrackerService.clearAllData();
