@@ -171,72 +171,68 @@ class _LineTracingScreenState extends ConsumerState<LineTracingScreen> {
                       Expanded(child: _GridPanel(dotPositions: dotPositions, lines: currentLevel.targetLines, color: currentLevel.color, isInteractive: false, title: 'CONTOH')),
                       Container(width: 4, margin: const EdgeInsets.symmetric(vertical: 40), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(2))),
                       Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  return GestureDetector(
-                                    onPanStart: (details) {
-                                      int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
-                                      if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
-                                    },
-                                    onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
-                                    onPanEnd: (details) {
-                                      if (activeStartIndex != null && currentTouchPos != null) {
-                                        int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
-                                        if (endIndex != null && endIndex != activeStartIndex) {
-                                          _Line newLine = _Line(activeStartIndex!, endIndex);
-                                          bool isCorrect = currentLevel.targetLines.any((tl) => tl == newLine);
-                                          if (isCorrect) {
-                                            setState(() {
-                                              if (!userLines.any((l) => l == newLine)) {
-                                                userLines.add(newLine);
-                                                HapticService.light();
-                                                _checkSuccess();
-                                              }
-                                            });
-                                          } else {
-                                            HapticService.failure();
-                                            _triggerFlashRed();
-                                          }
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return GestureDetector(
+                              onPanStart: (details) {
+                                int? index = _getDotIndexAt(details.localPosition, Size(constraints.maxWidth, constraints.maxHeight));
+                                if (index != null) { setState(() { activeStartIndex = index; currentTouchPos = details.localPosition; }); HapticService.light(); }
+                              },
+                              onPanUpdate: (details) { if (activeStartIndex != null) setState(() => currentTouchPos = details.localPosition); },
+                              onPanEnd: (details) {
+                                if (activeStartIndex != null && currentTouchPos != null) {
+                                  int? endIndex = _getDotIndexAt(currentTouchPos!, Size(constraints.maxWidth, constraints.maxHeight));
+                                  if (endIndex != null && endIndex != activeStartIndex) {
+                                    _Line newLine = _Line(activeStartIndex!, endIndex);
+                                    bool isCorrect = currentLevel.targetLines.any((tl) => tl == newLine);
+                                    if (isCorrect) {
+                                      setState(() {
+                                        if (!userLines.any((l) => l == newLine)) {
+                                          userLines.add(newLine);
+                                          HapticService.light();
+                                          _checkSuccess();
                                         }
-                                      }
-                                      setState(() { activeStartIndex = null; currentTouchPos = null; });
-                                    },
-                                    child: _GridPanel(
-                                      dotPositions: dotPositions,
-                                      lines: userLines,
-                                      activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null,
-                                      color: currentLevel.color,
-                                      isInteractive: true,
-                                      title: 'GAMBAR DISINI',
-                                      showRedFlash: _showRedFlash,
-                                    ),
-                                  );
-                                },
+                                      });
+                                    } else {
+                                      HapticService.failure();
+                                      _triggerFlashRed();
+                                    }
+                                  }
+                                }
+                                setState(() { activeStartIndex = null; currentTouchPos = null; });
+                              },
+                              child: _GridPanel(
+                                dotPositions: dotPositions,
+                                lines: userLines,
+                                activeLine: activeStartIndex != null ? _ActiveLine(activeStartIndex!, currentTouchPos!) : null,
+                                color: currentLevel.color,
+                                isInteractive: true,
+                                title: 'GAMBAR DISINI',
+                                showRedFlash: _showRedFlash,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton.icon(
-                              onPressed: _resetLevel,
-                              icon: Icon(Icons.refresh_rounded, color: currentLevel.color, size: 20),
-                              label: Text(
-                                'Ulangi',
-                                style: TextStyle(
-                                  color: currentLevel.color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _resetLevel,
+                    icon: Icon(Icons.refresh_rounded, color: currentLevel.color, size: 20),
+                    label: Text(
+                      'Ulangi',
+                      style: TextStyle(
+                        color: currentLevel.color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),

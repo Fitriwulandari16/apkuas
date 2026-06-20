@@ -16,6 +16,7 @@ class DebuggingRowModel {
   final int errorIndex;
   bool isIdentified;
   bool isCorrected;
+  bool showError;
 
   DebuggingRowModel({
     required this.index,
@@ -24,6 +25,7 @@ class DebuggingRowModel {
     required this.errorIndex,
     this.isIdentified = false,
     this.isCorrected = false,
+    this.showError = false,
   });
 }
 
@@ -45,6 +47,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   late List<DebuggingRowModel> _rows;
   int? _shakingArrowIndex; // Encodes row*10 + col index to identify shaking arrow
   bool _isSolved = false;
+
+  @visibleForTesting
+  List<DebuggingRowModel> get dots => _rows;
 
   // Proper shake animation controller (prevents main-thread blocking)
   late final AnimationController _shakeController;
@@ -135,6 +140,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       if (!mounted) return;
       setState(() {
         row.isIdentified = true;
+        row.showError = true;
       });
     } else {
       // Wrong arrow tapped
@@ -156,6 +162,27 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     _shakeController.forward(from: 0.0);
   }
 
+  String _getColorName(Color color) {
+    if (color.value == colBlue.value) return 'blue';
+    if (color.value == colYellow.value) return 'yellow';
+    if (color.value == colPink.value) return 'pink';
+    return color.value.toRadixString(16);
+  }
+
+  bool cekBarisCocok(List<Color> warnaBaris, List<Color> warnaMaster) {
+    if (warnaBaris.length != warnaMaster.length) return false;
+    for (int i = 0; i < warnaBaris.length; i++) {
+      if (_getColorName(warnaBaris[i]) != _getColorName(warnaMaster[i])) {
+        return false; // Ada yang beda, berarti masih eror
+      }
+    }
+    return true; // Cocok sempurna!
+  }
+
+  void gameWin() {
+    _onLevelComplete();
+  }
+
   void _handleColorDrop(DebuggingRowModel row, Color color) {
     if (_isSolved) return;
 
@@ -167,27 +194,19 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       row.initialColors[row.errorIndex] = color;
     });
 
-    // Check if the entire row matches the target pattern
-    bool rowMatches = true;
-    for (int i = 0; i < row.initialColors.length; i++) {
-      if (row.initialColors[i] != row.targetColors[i]) {
-        rowMatches = false;
-        break;
-      }
-    }
-
-    if (rowMatches) {
+    if (cekBarisCocok(row.initialColors, row.targetColors)) {
       // Correct repair color!
       SoundService.playSuccess();
       HapticService.success();
 
       setState(() {
         row.isCorrected = true;
+        row.showError = false;
       });
 
       // Check level completion
       if (_rows.every((r) => r.isCorrected)) {
-        _onLevelComplete();
+        gameWin();
       }
     } else {
       // Wrong repair color
@@ -415,7 +434,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
               const Spacer(),
               if (row.isCorrected)
                 const Icon(Icons.check_circle, color: Colors.green, size: 18)
-              else if (row.isIdentified)
+              else if (row.showError)
                 Text(
                   'Perbaiki eror!',
                   style: GoogleFonts.fredoka(
@@ -455,7 +474,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                     child: CustomPaint(
                       painter: MasterArrowPainter(
                         color: arrowColor,
-                        isXOverlay: isErrorIndex && row.isIdentified && !row.isCorrected,
+                        isXOverlay: isErrorIndex && row.showError && !row.isCorrected,
                         isCorrected: isErrorIndex && row.isCorrected,
                       ),
                     ),
@@ -465,7 +484,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                   // Note: We use baseArrow as child (not arrowWidget) to avoid
                   // self-referencing variable which causes widget tree corruption
                   Widget finalWidget;
-                  if (isErrorIndex && row.isIdentified && !row.isCorrected) {
+                  if (isErrorIndex && row.showError && !row.isCorrected) {
                     finalWidget = DragTarget<Color>(
                       onWillAccept: (data) => true,
                       onAccept: (data) {
