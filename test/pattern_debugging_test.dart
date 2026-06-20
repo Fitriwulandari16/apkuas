@@ -10,7 +10,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('PatternDebuggingScreen (Level 44) Rendering, Identification and Correction Test', (WidgetTester tester) async {
+  testWidgets('PatternDebuggingScreen (Level 44) Tap to Cycle Color Game Logic Test', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
 
@@ -28,54 +28,36 @@ void main() {
     expect(find.text('Level 44'), findsOneWidget);
     expect(find.text('Temukan warna panah yang salah (ketuk silang), lalu perbaiki!'), findsOneWidget);
 
-    // 2. Access state and verify initial conditions
+    // 2. Access state and verify initial pre-identified conditions
     final dynamic state = tester.state(find.byType(PatternDebuggingScreen));
     expect(state.dots, isNotNull);
     
-    // Check initial row 0: error index is 5, isIdentified is false, showError is false
+    // Check initial row 0: error index is 5, isIdentified is true, showError is true on start
     final row0 = state.dots[0];
-    expect(row0.isIdentified, isFalse);
-    expect(row0.showError, isFalse);
-    expect(find.text('Perbaiki eror!'), findsNothing);
+    expect(row0.isIdentified, isTrue);
+    expect(row0.showError, isTrue);
+    expect(find.text('Perbaiki eror!'), findsWidgets);
 
-    // 3. Tap the error arrow in Row 1 (index 5) to identify it
-    // Find the arrows of Row 1 under the ListView.
+    // 3. Find the arrows of Row 1 under the ListView.
     final arrowGestures = find.descendant(
       of: find.byType(ListView),
       matching: find.byType(GestureDetector),
     );
     expect(arrowGestures, findsNWidgets(24)); // 4 rows * 6 columns = 24 arrows
 
-    // Tap the 6th arrow (index 5)
+    // Initial color is 'blue'. Tap 1 -> cycles to 'yellow' (incorrect).
+    await tester.tap(arrowGestures.at(5));
+    await tester.pumpAndSettle();
+    expect(row0.initialColors[5], equals('yellow'));
+    expect(row0.isCorrected, isFalse);
+    expect(row0.showError, isTrue);
+
+    // Tap 2 -> cycles to 'pink' (correct color!).
     await tester.tap(arrowGestures.at(5));
     await tester.pumpAndSettle();
 
-    // Verify it is now identified and showing the error text
-    expect(row0.isIdentified, isTrue);
-    expect(row0.showError, isTrue);
-    expect(find.text('Perbaiki eror!'), findsWidgets);
-
-    // 4. Simulate dropping the correct color (colPink, which is index 2 in parts bin) onto the target.
-    // Master pattern index 5 is colPink.
-    // Let's find the DragTarget in Row 1.
-    final dragTargetFinder = find.byType(DragTarget<Color>);
-    expect(dragTargetFinder, findsOneWidget);
-
-    // Let's find the Pink color draggable in parts bin.
-    // Parts bin draggables: Blue, Yellow, Pink.
-    final draggableFinder = find.byType(Draggable<Color>);
-    expect(draggableFinder, findsNWidgets(3)); // 3 colors in Parts Bin
-
-    final Offset pinkDraggableOffset = tester.getCenter(draggableFinder.at(2)); // Pink
-    final Offset targetOffset = tester.getCenter(dragTargetFinder.first);
-
-    // Perform drag and drop
-    final TestGesture gesture = await tester.startGesture(pinkDraggableOffset);
-    await gesture.moveTo(targetOffset);
-    await gesture.up();
-    await tester.pumpAndSettle();
-
-    // Verify Row 0 is now corrected, showError is false, and "Perbaiki eror!" is hidden for Row 0
+    // Verify Row 0 is now corrected, showError is false, and "Perbaiki eror!" is hidden
+    expect(row0.initialColors[5], equals('pink'));
     expect(row0.isCorrected, isTrue);
     expect(row0.showError, isFalse);
   });

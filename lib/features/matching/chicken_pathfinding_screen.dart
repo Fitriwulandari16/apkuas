@@ -24,6 +24,31 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
   late List<Map<String, dynamic>> level45Dots;
   final bool _showingHint = false; // Kept for testing compatibility
 
+  // Vibration Guard (Debounce/Throttle)
+  Timer? _vibrationTimer;
+  bool _canVibrate = true;
+
+  void _triggerGagalGetar() {
+    if (!_canVibrate) return;
+    _canVibrate = false;
+    HapticFeedback.lightImpact();
+    _vibrationTimer?.cancel();
+    _vibrationTimer = Timer(const Duration(milliseconds: 500), () {
+      _canVibrate = true;
+    });
+  }
+
+  // Optimized static const lists for memory efficiency
+  static const List<Map<String, Object>> _legendRules = [
+    {'color': Colors.blue, 'mark': 'x'},
+    {'color': Colors.pink, 'mark': 'plus'},
+    {'color': Colors.green, 'mark': 'triangle'},
+    {'color': Colors.yellow, 'mark': 'circle'},
+    {'color': Colors.purple, 'mark': 'square'},
+  ];
+
+  static const List<String> _partsBinShapes = ['x', 'plus', 'triangle', 'circle', 'square'];
+
   @visibleForTesting
   List<Map<String, dynamic>> get dots => level45Dots;
 
@@ -34,6 +59,12 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
   void initState() {
     super.initState();
     _initGame();
+  }
+
+  @override
+  void dispose() {
+    _vibrationTimer?.cancel();
+    super.dispose();
   }
 
   void _initGame() {
@@ -133,7 +164,7 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
                           });
                         } else {
                           SoundService.playError();
-                          HapticFeedback.lightImpact(); // Trigger haptic vibration on incorrect drop
+                          _triggerGagalGetar(); // Throttled haptic vibration
                         }
                       },
                       builder: (context, candidateData, rejectedData) {
@@ -220,14 +251,6 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
   }
 
   Widget _buildLegend() {
-    final rules = [
-      {'color': Colors.blue, 'mark': 'x'},
-      {'color': Colors.pink, 'mark': 'plus'},
-      {'color': Colors.green, 'mark': 'triangle'},
-      {'color': Colors.yellow, 'mark': 'circle'},
-      {'color': Colors.purple, 'mark': 'square'},
-    ];
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(8),
@@ -238,7 +261,7 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: rules.map((rule) {
+        children: _legendRules.map((rule) {
           return SizedBox(
             width: 50,
             height: 50,
@@ -255,8 +278,6 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
   }
 
   Widget _buildPartsBin() {
-    final shapes = ['x', 'plus', 'triangle', 'circle', 'square'];
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
@@ -287,7 +308,7 @@ class _ChickenPathfindingScreenState extends ConsumerState<ChickenPathfindingScr
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: shapes.map((shape) {
+            children: _partsBinShapes.map((shape) {
               return Draggable<String>(
                 data: shape,
                 feedback: Material(

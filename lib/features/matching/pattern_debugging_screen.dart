@@ -12,8 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class DebuggingRowModel {
   final int index;
-  final List<Color> initialColors;
-  final List<Color> targetColors;
+  final List<String> initialColors;
+  final List<String> targetColors;
   final int errorIndex;
   bool isIdentified;
   bool isCorrected;
@@ -40,7 +40,7 @@ class PatternDebuggingScreen extends ConsumerStatefulWidget {
 
 class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     with SingleTickerProviderStateMixin {
-  // Master colors
+  // Master colors for visual conversion
   static const Color colBlue = Color(0xFF38BDF8);   // Biru Muda
   static const Color colYellow = Color(0xFFFACC15); // Kuning
   static const Color colPink = Color(0xFFF472B6);   // Pink
@@ -106,50 +106,76 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   }
 
   void _initLevel() {
-    final List<Color> masterPattern = [colBlue, colBlue, colYellow, colYellow, colPink, colPink];
+    const List<String> masterPattern = ['blue', 'blue', 'yellow', 'yellow', 'pink', 'pink'];
 
     _rows = [
       // Row 1: Blue, Blue, Yellow, Yellow, Pink, [Blue - ERROR]
       DebuggingRowModel(
         index: 0,
-        initialColors: [colBlue, colBlue, colYellow, colYellow, colPink, colBlue],
+        initialColors: ['blue', 'blue', 'yellow', 'yellow', 'pink', 'blue'],
         targetColors: List.from(masterPattern),
         errorIndex: 5,
-        isIdentified: false,
+        isIdentified: true,
         isCorrected: false,
-        showError: false,
+        showError: true,
       ),
       // Row 2: Blue, Blue, [Pink - ERROR], Yellow, Pink, Pink
       DebuggingRowModel(
         index: 1,
-        initialColors: [colBlue, colBlue, colPink, colYellow, colPink, colPink],
+        initialColors: ['blue', 'blue', 'pink', 'yellow', 'pink', 'pink'],
         targetColors: List.from(masterPattern),
         errorIndex: 2,
-        isIdentified: false,
+        isIdentified: true,
         isCorrected: false,
-        showError: false,
+        showError: true,
       ),
       // Row 3: Blue, [Yellow - ERROR], Yellow, Yellow, Pink, Pink
       DebuggingRowModel(
         index: 2,
-        initialColors: [colBlue, colYellow, colYellow, colYellow, colPink, colPink],
+        initialColors: ['blue', 'yellow', 'yellow', 'yellow', 'pink', 'pink'],
         targetColors: List.from(masterPattern),
         errorIndex: 1,
-        isIdentified: false,
+        isIdentified: true,
         isCorrected: false,
-        showError: false,
+        showError: true,
       ),
       // Row 4: Blue, Blue, Yellow, [Pink - ERROR], Pink, Pink
       DebuggingRowModel(
         index: 3,
-        initialColors: [colBlue, colBlue, colYellow, colPink, colPink, colPink],
+        initialColors: ['blue', 'blue', 'yellow', 'pink', 'pink', 'pink'],
         targetColors: List.from(masterPattern),
         errorIndex: 3,
-        isIdentified: false,
+        isIdentified: true,
         isCorrected: false,
-        showError: false,
+        showError: true,
       ),
     ];
+  }
+
+  Color _getColorFromString(String name) {
+    switch (name) {
+      case 'blue':
+        return colBlue;
+      case 'yellow':
+        return colYellow;
+      case 'pink':
+        return colPink;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getNextColorInCycle(String currentColor) {
+    switch (currentColor) {
+      case 'blue':
+        return 'yellow';
+      case 'yellow':
+        return 'pink';
+      case 'pink':
+        return 'blue';
+      default:
+        return 'blue';
+    }
   }
 
   void _handleArrowTap(int rowIndex, int colIndex) {
@@ -161,21 +187,24 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
 
     final row = _rows[rowIndex];
 
-    // Tapping is only for identifying the wrong color before correction
-    if (row.isCorrected || row.isIdentified) return;
-
+    // Only allow tapping the error arrow to change its color if it's not yet corrected
     if (colIndex == row.errorIndex) {
-      // Correct identification!
+      if (row.isCorrected) return;
+
+      final currentColorName = row.initialColors[colIndex];
+      final nextColorName = _getNextColorInCycle(currentColorName);
+
       SoundService.playSuccess();
       HapticService.success();
 
-      if (!mounted) return;
       setState(() {
-        row.isIdentified = true;
-        row.showError = true;
+        row.initialColors[colIndex] = nextColorName;
       });
+
+      // Run validation automatically after color change
+      periksaKecocokanLevel44(row);
     } else {
-      // Wrong arrow tapped
+      // Tapping other correct arrows triggers a shake warning
       _shakeArrow(rowIndex, colIndex);
     }
   }
@@ -194,17 +223,10 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     _shakeController.forward(from: 0.0);
   }
 
-  String _getColorName(Color color) {
-    if (color.value == colBlue.value) return 'blue';
-    if (color.value == colYellow.value) return 'yellow';
-    if (color.value == colPink.value) return 'pink';
-    return color.value.toRadixString(16);
-  }
-
-  bool cekBarisCocok(List<Color> warnaBaris, List<Color> warnaMaster) {
+  bool cekBarisCocok(List<String> warnaBaris, List<String> warnaMaster) {
     if (warnaBaris.length != warnaMaster.length) return false;
     for (int i = 0; i < warnaBaris.length; i++) {
-      if (_getColorName(warnaBaris[i]) != _getColorName(warnaMaster[i])) {
+      if (warnaBaris[i] != warnaMaster[i]) {
         return false; // Ada yang beda, berarti masih eror
       }
     }
@@ -215,19 +237,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
     _onLevelComplete();
   }
 
-  void _handleColorDrop(DebuggingRowModel row, Color color) {
-    if (_isSolved) return;
-
-    // Bounds validation on errorIndex
-    if (row.errorIndex < 0 || row.errorIndex >= row.targetColors.length) return;
-
-    // Dynamically update the color on drop
-    setState(() {
-      row.initialColors[row.errorIndex] = color;
-    });
-
+  void periksaKecocokanLevel44(DebuggingRowModel row) {
     if (cekBarisCocok(row.initialColors, row.targetColors)) {
-      // Correct repair color!
+      // Correct color cycle selection!
       SoundService.playSuccess();
       HapticService.success();
 
@@ -241,9 +253,10 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         gameWin();
       }
     } else {
-      // Wrong repair color
-      SoundService.playError();
-      HapticService.failure();
+      // Keep showing error indicator if still wrong
+      setState(() {
+        row.showError = true;
+      });
     }
   }
 
@@ -296,13 +309,6 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(color: const Color(0xFFE2E8F0), width: 4.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.01),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: ListView.builder(
                     physics: const BouncingScrollPhysics(),
@@ -365,12 +371,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -394,7 +395,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   }
 
   Widget _buildMasterPatternHeader() {
-    final List<Color> masterPattern = [colBlue, colBlue, colYellow, colYellow, colPink, colPink];
+    const List<String> masterPattern = ['blue', 'blue', 'yellow', 'yellow', 'pink', 'pink'];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -403,12 +404,6 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.indigo.shade100, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            blurRadius: 6,
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -429,13 +424,11 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
 
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: masterPattern.map((color) {
+                children: masterPattern.map((colorName) {
                   return SizedBox(
                     width: arrowW,
                     height: arrowH,
-                    child: CustomPaint(
-                      painter: MasterArrowPainter(color: color),
-                    ),
+                    child: MasterArrowWidget(color: _getColorFromString(colorName)),
                   );
                 }).toList(),
               );
@@ -454,7 +447,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: row.isCorrected ? Colors.green.withOpacity(0.2) : Colors.grey.shade200,
+          color: row.isCorrected ? Colors.green.shade200 : const Color(0xFFE2E8F0),
           width: 2,
         ),
       ),
@@ -502,53 +495,27 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
                   final isErrorIndex = colIndex == row.errorIndex;
                   final isShaking = _shakingArrowIndex == (rowIndex * 10 + colIndex);
 
-                  Color arrowColor = row.initialColors[colIndex];
+                  String colorName = row.initialColors[colIndex];
                   if (isErrorIndex && row.isCorrected && colIndex < row.targetColors.length) {
-                    arrowColor = row.targetColors[colIndex]; // show corrected color
+                    colorName = row.targetColors[colIndex]; // show corrected color
                   }
+                  Color arrowColor = _getColorFromString(colorName);
 
                   // Build the base arrow widget
                   final baseArrow = SizedBox(
-                    width: arrowW,
-                    height: arrowH,
-                    child: CustomPaint(
-                      painter: MasterArrowPainter(
-                        color: arrowColor,
-                        isXOverlay: isErrorIndex && row.showError && !row.isCorrected,
-                        isCorrected: isErrorIndex && row.isCorrected,
-                      ),
-                    ),
+                     width: arrowW,
+                     height: arrowH,
+                     child: MasterArrowWidget(
+                       color: arrowColor,
+                       isXOverlay: isErrorIndex && row.showError && !row.isCorrected,
+                       isCorrected: isErrorIndex && row.isCorrected,
+                     ),
                   );
 
-                  // If identified but not corrected, make the error slot a DragTarget
-                  // Note: We use baseArrow as child (not arrowWidget) to avoid
-                  // self-referencing variable which causes widget tree corruption
-                  Widget finalWidget;
-                  if (isErrorIndex && row.showError && !row.isCorrected) {
-                    finalWidget = DragTarget<Color>(
-                      onWillAccept: (data) => true,
-                      onAccept: (data) {
-                        if (data != null) {
-                          _handleColorDrop(row, data);
-                        }
-                      },
-                      builder: (context, candidateData, rejectedData) {
-                        final bool isHovering = candidateData.isNotEmpty;
-                        return AnimatedScale(
-                          scale: isHovering ? 1.2 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: baseArrow,
-                        );
-                      },
-                    );
-                  } else {
-                    finalWidget = baseArrow;
-                  }
-
-                  // Wrap with gesture detector for tap identification
+                  // Gesture detector for tap identification and cycling
                   final tappableWidget = GestureDetector(
                     onTap: () => _handleArrowTap(rowIndex, colIndex),
-                    child: finalWidget,
+                    child: baseArrow,
                   );
 
                   // Only wrap with AnimatedBuilder for the shaking arrow
@@ -576,11 +543,11 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
   }
 
   Widget _buildPartsBin() {
-    final List<Color> colors = [colBlue, colYellow, colPink];
-    final Map<Color, String> colorNames = {
-      colBlue: 'Biru Muda',
-      colYellow: 'Kuning',
-      colPink: 'Pink',
+    const List<String> colors = ['blue', 'yellow', 'pink'];
+    final Map<String, String> colorNames = {
+      'blue': 'Biru Muda',
+      'yellow': 'Kuning',
+      'pink': 'Pink',
     };
 
     return Container(
@@ -590,19 +557,13 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'PARTS BIN (SERET WARNA BENAR UNTUK MEMPERBAIKI)',
+            'PANDUAN WARNA (KETUK PANAH SILANG UNTUK MENGUBAH WARNA)',
             style: GoogleFonts.fredoka(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -614,16 +575,9 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: colors.map((color) {
-                return Draggable<Color>(
-                  data: color,
-                  feedback: _buildDraggableArrowFeedback(color),
-                  childWhenDragging: Opacity(
-                    opacity: 0.35,
-                    child: _buildDraggableArrow(color, colorNames[color]!),
-                  ),
-                  child: _buildDraggableArrow(color, colorNames[color]!),
-                );
+              children: colors.map((colorName) {
+                final displayColor = _getColorFromString(colorName);
+                return _buildDraggableArrow(displayColor, colorNames[colorName]!);
               }).toList(),
             ),
           ),
@@ -639,9 +593,7 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
         SizedBox(
           width: 44,
           height: 28,
-          child: CustomPaint(
-            painter: MasterArrowPainter(color: color),
-          ),
+          child: MasterArrowWidget(color: color),
         ),
         const SizedBox(height: 4),
         Text(
@@ -655,107 +607,47 @@ class _PatternDebuggingScreenState extends ConsumerState<PatternDebuggingScreen>
       ],
     );
   }
-
-  Widget _buildDraggableArrowFeedback(Color color) {
-    return Material(
-      color: Colors.transparent,
-      child: SizedBox(
-        width: 52,
-        height: 34,
-        child: CustomPaint(
-          painter: MasterArrowPainter(color: color, isFloatingFeedback: true),
-        ),
-      ),
-    );
-  }
 }
 
-class MasterArrowPainter extends CustomPainter {
+class MasterArrowWidget extends StatelessWidget {
   final Color color;
   final bool isXOverlay;
   final bool isCorrected;
-  final bool isFloatingFeedback;
 
-  MasterArrowPainter({
+  const MasterArrowWidget({
+    super.key,
     required this.color,
     this.isXOverlay = false,
     this.isCorrected = false,
-    this.isFloatingFeedback = false,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-
-    // Draw background vector arrow
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final borderPaint = Paint()
-      ..color = const Color(0xFF334155)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    final double headW = w * 0.44;
-    final double tailH = h * 0.44;
-
-    final path = Path()
-      ..moveTo(2, (h - tailH) / 2)
-      ..lineTo(w - headW, (h - tailH) / 2)
-      ..lineTo(w - headW, 2)
-      ..lineTo(w - 2, h / 2)
-      ..lineTo(w - headW, h - 2)
-      ..lineTo(w - headW, (h + tailH) / 2)
-      ..lineTo(2, (h + tailH) / 2)
-      ..close();
-
-    canvas.drawPath(path, paint);
-    canvas.drawPath(path, borderPaint);
-
-    // Subtle gloss overlay
-    final glossPaint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-    final glossPath = Path()
-      ..moveTo(4, (h - tailH) / 2 + 1.5)
-      ..lineTo(w - headW, (h - tailH) / 2 + 1.5)
-      ..lineTo(w - headW, 4)
-      ..lineTo(w - 6, h / 2)
-      ..lineTo(w - headW + 2, h / 2)
-      ..lineTo(w - headW + 2, (h - tailH) / 2 + 4)
-      ..lineTo(4, (h - tailH) / 2 + 4)
-      ..close();
-    canvas.drawPath(glossPath, glossPaint);
-
-    // If marked as identified wrong color (red cross overlay)
-    if (isXOverlay) {
-      final xPaint = Paint()
-        ..color = Colors.red.shade600
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.round;
-
-      // Draw standard X lines
-      canvas.drawLine(const Offset(4, 4), Offset(w - 4, h - 4), xPaint);
-      canvas.drawLine(Offset(4, h - 4), Offset(w - 4, 4), xPaint);
-    }
-
-    // Success glow outline if corrected
-    if (isCorrected) {
-      final glowPaint = Paint()
-        ..color = Colors.greenAccent
-        ..strokeWidth = 3.0
-        ..style = PaintingStyle.stroke;
-      canvas.drawPath(path, glowPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant MasterArrowPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.isXOverlay != isXOverlay ||
-        oldDelegate.isCorrected != isCorrected ||
-        oldDelegate.isFloatingFeedback != isFloatingFeedback;
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isCorrected ? Colors.green : const Color(0xFF334155),
+          width: isCorrected ? 3.0 : 2.0,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Icon(
+            Icons.arrow_forward_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+          if (isXOverlay)
+            const Icon(
+              Icons.close_rounded,
+              color: Colors.red,
+              size: 20,
+            ),
+        ],
+      ),
+    );
   }
 }
