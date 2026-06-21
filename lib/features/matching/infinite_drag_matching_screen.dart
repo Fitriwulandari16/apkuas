@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
+import 'package:apkuas/core/services/sound_service.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:math' as math;
 
 class InfiniteDragMatchingScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -28,14 +33,10 @@ class _CellData {
         isMatched = false;
 }
 
-class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchingScreen> with TickerProviderStateMixin {
-  late List<_CellData> _cells;
-  late Map<int, AnimationController> _pulseControllers;
+class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchingScreen> {
+  late List<_CellData> cells;
+  ShapeType? selectedShape;
 
-  // Warna pembingkai presisi sesuai buku cetak asli:
-  // Segitiga = Hijau
-  // Lingkaran = Hitam
-  // Segi Empat = Hitam
   static const Color colTriangle = Color(0xFF4CAF50); // Hijau
   static const Color colCircle = Colors.black87;      // Hitam
   static const Color colSquare = Colors.black87;      // Hitam
@@ -43,64 +44,54 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
   @override
   void initState() {
     super.initState();
-    _initLevel();
+    _resetLevel();
   }
 
-  void _initLevel() {
-    // 16 Angka presisi dari buku referensi
-    final initialNumbers = [
-      3, 1, 2, 3,
-      1, 2, 3, 1,
-      2, 3, 1, 2,
-      3, 1, 2, 2,
-    ];
-
-    _cells = initialNumbers.map((num) => _CellData(number: num)).toList();
-
-    _pulseControllers = {};
-    for (int i = 0; i < _cells.length; i++) {
-      _pulseControllers[i] = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      );
-    }
+  void _resetLevel() {
+    setState(() {
+      selectedShape = null;
+      final initialNumbers = [
+        3, 1, 2, 3,
+        1, 2, 3, 1,
+        2, 3, 1, 2,
+        3, 1, 2, 2,
+      ];
+      cells = initialNumbers.map((num) => _CellData(number: num)).toList();
+    });
   }
 
-  @override
-  void dispose() {
-    for (var controller in _pulseControllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
+  bool _handleShapeTap(int index, ShapeType? shape) {
+    if (shape == null) return false;
+    final cell = cells[index];
 
-  void _handleDrop(ShapeType draggedShape, int index) {
-    final cell = _cells[index];
-    if (cell.isMatched) return;
-
-    if (draggedShape == cell.requiredShape) {
-      HapticService.success();
-      // Play pop sound
-      
+    if (cell.requiredShape == shape) {
       setState(() {
         cell.isMatched = true;
       });
+      SoundService.playSuccess();
+      HapticService.success();
 
-      _pulseControllers[index]!.forward().then((_) {
-        _pulseControllers[index]!.reverse();
-      });
-
-      // Cek kemenangan total
-      if (_cells.every((c) => c.isMatched)) {
-        _onLevelComplete();
+      // Cek kemenangan
+      if (cells.every((c) => c.isMatched)) {
+        gameWin();
       }
+      return true;
     } else {
-      HapticService.failure();
+      SoundService.playError();
+      HapticFeedback.lightImpact();
+      return false;
     }
+  }
+
+  void gameWin() {
+    _onLevelComplete();
   }
 
   void _onLevelComplete() {
     ref.read(progressProvider.notifier).completeLevel(widget.levelId);
+    UserService.updateProgress(widget.levelId).catchError((e) {
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
+    });
     
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
@@ -112,56 +103,136 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Konten Utama Scrollable
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildHeader(),
-                  _buildInstruction(),
-                  
-                  // Atas: Legenda Petunjuk Statis
-                  _buildLegendCard(),
-                  
-                  // Tengah: Papan Utama (Grid 4x4)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        childAspectRatio: 1.0,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
+    return ResponsiveWrapper(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildInstruction(),
+              
+              // Legenda Petunjuk Atas (Bersih tanpa teks/angka di dalam geometri)
+              _buildLegendCard(),
+              
+              // Area Grid 4x4
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          childAspectRatio: 1.0,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: cells.length,
+                        itemBuilder: (context, index) {
+                          return _GridCellWidget(
+                            index: index,
+                            cell: cells[index],
+                            selectedShape: selectedShape,
+                            onShapeSubmitted: _handleShapeTap,
+                          );
+                        },
                       ),
-                      itemCount: _cells.length,
-                      itemBuilder: (context, index) {
-                        return _buildGridCell(index);
-                      },
                     ),
                   ),
-                  
-                  // Jarak ekstra agar baris angka paling bawah tidak tertutup dock yang melayang
-                  const SizedBox(height: 120),
-                ],
+                ),
+              ),
+              
+              // Bottom Palette Area
+              _buildBottomArea(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomArea() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          )
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Row of Shape Pickers
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildShapePickerItem(ShapeType.triangle, colTriangle),
+              _buildShapePickerItem(ShapeType.circle, colCircle),
+              _buildShapePickerItem(ShapeType.square, colSquare),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Symmetric Reset Button
+          TextButton.icon(
+            onPressed: _resetLevel,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
+            label: const Text(
+              'Ulangi',
+              style: TextStyle(
+                color: Colors.blueGrey,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
-            
-            // Footer: Dock Geometri melayang di paling bawah
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildGeometryDock(),
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShapePickerItem(ShapeType type, Color color) {
+    final isSelected = selectedShape == type;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedShape = type;
+        });
+        HapticFeedback.selectionClick();
+      },
+      child: AnimatedScale(
+        scale: isSelected ? 1.15 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: isSelected 
+                ? Border.all(color: Colors.black87, width: 3.5)
+                : Border.all(color: Colors.grey.shade200, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              )
+            ],
+          ),
+          padding: const EdgeInsets.all(10),
+          child: CustomPaint(
+            painter: _GeometryFramePainter(type: type, color: color, isFilled: false),
+          ),
         ),
       ),
     );
@@ -169,7 +240,7 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
           IconButton(
@@ -181,7 +252,7 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
               'Level 18',
               textAlign: TextAlign.center,
               style: GoogleFonts.fredoka(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: CilikTheme.tealTua,
               ),
@@ -195,8 +266,8 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
 
   Widget _buildInstruction() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
@@ -205,13 +276,13 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.style_rounded, color: Colors.indigo, size: 24),
-          const SizedBox(width: 12),
+          const Icon(Icons.style_rounded, color: Colors.indigo, size: 20),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
-              'Perhatikan contoh, lalu bingkai setiap angka!',
+              'Pilih bingkai di bawah, lalu ketuk angka yang sesuai!',
               style: GoogleFonts.fredoka(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Colors.indigo.shade800,
               ),
@@ -225,12 +296,12 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
 
   Widget _buildLegendCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      padding: const EdgeInsets.all(12.0),
+      margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 6.0),
+      padding: const EdgeInsets.all(10.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         children: [
@@ -242,13 +313,13 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildLegendItem(ShapeType.triangle, colTriangle, '1'),
-              _buildLegendItem(ShapeType.circle, colCircle, '2'),
-              _buildLegendItem(ShapeType.square, colSquare, '3'),
+              _buildLegendItem(ShapeType.triangle, colTriangle),
+              _buildLegendItem(ShapeType.circle, colCircle),
+              _buildLegendItem(ShapeType.square, colSquare),
             ],
           ),
         ],
@@ -256,156 +327,113 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
     );
   }
 
-  Widget _buildLegendItem(ShapeType type, Color color, String num) {
-    return Row(
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 45,
-              height: 45,
-              child: CustomPaint(
-                painter: _GeometryFramePainter(type: type, color: color, isFilled: false),
-              ),
-            ),
-            Text(
-              num,
-              style: GoogleFonts.fredoka(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade800),
-            )
-          ],
-        ),
-      ],
+  Widget _buildLegendItem(ShapeType type, Color color) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: CustomPaint(
+        painter: _GeometryFramePainter(type: type, color: color, isFilled: false),
+      ),
     );
   }
+}
 
-  Widget _buildGridCell(int index) {
-    final cell = _cells[index];
+class _GridCellWidget extends StatefulWidget {
+  final int index;
+  final _CellData cell;
+  final ShapeType? selectedShape;
+  final bool Function(int, ShapeType?) onShapeSubmitted;
 
-    return DragTarget<ShapeType>(
-      onWillAcceptWithDetails: (details) => !cell.isMatched,
-      onAcceptWithDetails: (details) => _handleDrop(details.data, index),
-      builder: (context, candidateData, rejectedData) {
-        return ScaleTransition(
-          scale: Tween(begin: 1.0, end: 1.25).animate(
-            CurvedAnimation(
-              parent: _pulseControllers[index]!,
-              curve: Curves.elasticOut,
+  const _GridCellWidget({
+    required this.index,
+    required this.cell,
+    required this.selectedShape,
+    required this.onShapeSubmitted,
+  });
+
+  @override
+  State<_GridCellWidget> createState() => _GridCellWidgetState();
+}
+
+class _GridCellWidgetState extends State<_GridCellWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _shakeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cell = widget.cell;
+    final isMatched = cell.isMatched;
+
+    return GestureDetector(
+      onTap: () {
+        if (isMatched) return;
+        bool correct = widget.onShapeSubmitted(widget.index, widget.selectedShape);
+        if (!correct) {
+          _shakeController.forward(from: 0);
+        }
+      },
+      child: AnimatedBuilder(
+        animation: _shakeController,
+        builder: (context, child) {
+          final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
+          return Transform.translate(
+            offset: Offset(offset, 0),
+            child: child,
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: isMatched ? Colors.white : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: isMatched
+                ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]
+                : null,
+            border: Border.all(
+              color: isMatched ? Colors.green.shade200 : Colors.grey.shade200,
+              width: isMatched ? 1.5 : 1.0,
             ),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: cell.isMatched ? Colors.white : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: cell.isMatched
-                  ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]
-                  : null,
-              border: Border.all(
-                color: candidateData.isNotEmpty ? Colors.blue.shade300 : Colors.transparent,
-                width: 2.0,
-              ),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Layer Bawah: Bentuk Pembingkai (jika sukses)
-                if (cell.isMatched)
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: CustomPaint(
-                        painter: _GeometryFramePainter(
-                          type: cell.requiredShape,
-                          color: cell.requiredShape == ShapeType.triangle
-                              ? colTriangle
-                              : (cell.requiredShape == ShapeType.circle ? colCircle : colSquare),
-                          isFilled: false,
-                        ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (isMatched)
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CustomPaint(
+                      painter: _GeometryFramePainter(
+                        type: cell.requiredShape,
+                        color: cell.requiredShape == ShapeType.triangle
+                            ? const Color(0xFF4CAF50)
+                            : Colors.black87,
+                        isFilled: false,
                       ),
                     ),
                   ),
-                
-                // Layer Atas: Angka Utama
-                Text(
-                  cell.number.toString(),
-                  style: GoogleFonts.fredoka(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: cell.isMatched
-                        ? Colors.blueGrey.shade800
-                        : Colors.blueGrey.shade300,
-                  ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildGeometryDock() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20.0),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.96),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          )
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildInfiniteDraggable(ShapeType.triangle, colTriangle),
-          _buildInfiniteDraggable(ShapeType.circle, colCircle),
-          _buildInfiniteDraggable(ShapeType.square, colSquare),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfiniteDraggable(ShapeType type, Color color) {
-    return Draggable<ShapeType>(
-      data: type,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Transform.scale(
-          scale: 1.2, // Bayangan bentuk saat digeser berukuran skala 1.2
-          child: _buildDockItemContainer(type, color, isShadow: true),
-        ),
-      ),
-      childWhenDragging: _buildDockItemContainer(type, color), // child aslinya tetap diam di footer
-      child: _buildDockItemContainer(type, color),
-    );
-  }
-
-  Widget _buildDockItemContainer(ShapeType type, Color color, {bool isShadow = false}) {
-    return Container(
-      width: 80, // Geometri murni yang besar dan jelas
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: isShadow ? Colors.black26 : Colors.black.withOpacity(0.04),
-            blurRadius: isShadow ? 12 : 5,
-            offset: Offset(0, isShadow ? 6 : 2),
-          )
-        ],
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: CustomPaint(
-            painter: _GeometryFramePainter(type: type, color: color, isFilled: false),
-            size: const Size(double.infinity, double.infinity),
+              
+              Text(
+                cell.number.toString(),
+                style: GoogleFonts.fredoka(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isMatched
+                      ? Colors.blueGrey.shade800
+                      : Colors.blueGrey.shade300,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -413,7 +441,6 @@ class _InfiniteDragMatchingScreenState extends ConsumerState<InfiniteDragMatchin
   }
 }
 
-// Custom Painter premium untuk membingkai geometri (Hollow Outline)
 class _GeometryFramePainter extends CustomPainter {
   final ShapeType type;
   final Color color;
