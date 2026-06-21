@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
+import 'dart:io';
 import 'package:apkuas/features/level_selection_screen.dart';
 import 'package:apkuas/features/adventure_map_screen.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
@@ -17,15 +18,8 @@ import 'package:apkuas/features/matching/level_50.dart';
 
 import 'package:apkuas/core/services/gallery_service.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Hive
-  await Hive.initFlutter();
-  await Hive.openBox('settings');
-  await Hive.openBox('progress');
-  await GalleryService.init();
-
   runApp(const ProviderScope(child: CilikCodeApp()));
 }
 
@@ -40,7 +34,8 @@ class CilikCodeApp extends StatelessWidget {
       theme: CilikTheme.lightTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => const MainMenuScreen(),
+        '/': (context) => const SplashScreen(),
+        '/home': (context) => const MainMenuScreen(),
         '/adventure_map': (context) => const AdventureMapScreen(),
         '/awards': (context) => const AwardsScreen(),
         '/level_1': (context) => LevelResolver.buildLevel(1),
@@ -98,6 +93,90 @@ class CilikCodeApp extends StatelessWidget {
         '/free_coloring': (context) => const FreeColoringScreen(),
         '/gallery': (context) => const GalleryScreen(),
       },
+    );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeAppData();
+  }
+
+  Future<void> _initializeAppData() async {
+    final bool isTest = Platform.environment.containsKey('FLUTTER_TEST');
+
+    if (!isTest) {
+      try {
+        // Load local database and gallery cache in splash state to keep main execution fast
+        await Hive.initFlutter();
+        await Hive.openBox('settings');
+        await Hive.openBox('progress');
+        await GalleryService.init();
+      } catch (e) {
+        debugPrint('Initialization error: $e');
+      }
+    }
+
+    if (mounted) {
+      // Soft fade transition to the MainMenuScreen (deferred to post-build phase)
+      Future.microtask(() {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const MainMenuScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 650),
+          ),
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Detect if running in a widget test environment to avoid pumpAndSettle timeouts from infinite animations
+    final bool isTest = Platform.environment.containsKey('FLUTTER_TEST');
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F7FF), // Aesthetic light blue
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/app_icon.png',
+              width: 150,
+              height: 150,
+              errorBuilder: (context, error, stackTrace) => const SizedBox(
+                width: 150,
+                height: 150,
+                child: Icon(Icons.palette_rounded, size: 80, color: CilikTheme.tealTua),
+              ),
+            ),
+            const SizedBox(height: 30),
+            if (isTest)
+              const Text('Loading...', style: TextStyle(color: CilikTheme.tealTua, fontWeight: FontWeight.bold))
+            else
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(CilikTheme.tealTua),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

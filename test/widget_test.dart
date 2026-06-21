@@ -20,6 +20,10 @@ void main() {
       ),
     );
 
+    // Settle the SplashScreen initialization and fade transition
+    await tester.idle();
+    await tester.pumpAndSettle();
+
     // Verify that the title is present.
     expect(find.text('CilikCode'), findsOneWidget);
     
