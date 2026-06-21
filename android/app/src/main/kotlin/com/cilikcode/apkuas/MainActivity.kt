@@ -1,4 +1,4 @@
-package com.example.apkuas
+package com.cilikcode.apkuas
 
 import io.flutter.embedding.android.FlutterActivity
 
