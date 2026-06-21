@@ -93,7 +93,8 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                       const double padding = 44.0;
                       final double stepX = (width - 2 * padding) / 4;
                       const double stepY = 200.0;
-                      const double totalHeight = 2500.0;
+                      final int numRows = (LevelResolver.totalLevels / 5).ceil();
+                      final double totalHeight = padding * 2 + numRows * stepY + 200.0;
 
                       // Define static ornaments list with specific coordinates
                       final List<Map<String, dynamic>> ornaments = [
@@ -161,6 +162,12 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                           'angle': -0.08,
                         },
                       ];
+
+                      // Filter ornaments dynamically so they fit within our scrolling area
+                      final List<Map<String, dynamic>> visibleOrnaments = ornaments.where((orn) {
+                        final double r = orn['r'];
+                        return r < numRows;
+                      }).toList();
 
                       return Column(
                         children: [
@@ -237,7 +244,7 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                     ),
 
                                     // 2. Render Ornaments
-                                    ...ornaments.map((orn) {
+                                    ...visibleOrnaments.map((orn) {
                                       final double r = orn['r'];
                                       final double c = orn['c'];
                                       final double x = padding + c * stepX;
@@ -287,7 +294,7 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                     // 4. Middle Label "Semangat!"
                                     Positioned(
                                       left: padding + 2 * stepX - 45,
-                                      top: padding + 4.5 * stepY + 55,
+                                      top: padding + ((numRows - 1) / 2) * stepY + 55,
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(
@@ -308,10 +315,10 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                       ),
                                     ),
 
-                                    // 5. Final Label "Selesai" near Level 50
+                                    // 5. Final Label "Selesai" near Level totalLevels
                                     Positioned(
-                                      left: padding,
-                                      top: padding + 9.6 * stepY + 30,
+                                      left: (_getNodeCenter(LevelResolver.totalLevels, width, stepY, padding).dx - 60).clamp(16.0, width - 150.0),
+                                      top: _getNodeCenter(LevelResolver.totalLevels, width, stepY, padding).dy + 50,
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                         decoration: BoxDecoration(
@@ -353,8 +360,8 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                       ),
                                     ),
 
-                                    // 6. Level Nodes (Level 1 to 50)
-                                    ...List.generate(50, (index) {
+                                    // 6. Level Nodes (Level 1 to totalLevels)
+                                    ...List.generate(LevelResolver.totalLevels, (index) {
                                       final int level = index + 1;
                                       final bool isUnlocked = level <= currentProgress;
                                       final bool isCurrent = level == currentProgress;
@@ -424,7 +431,7 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                     borderRadius: BorderRadius.circular(28),
                                     onTap: () {
                                       int target = currentProgress;
-                                      if (target > 50) target = 50;
+                                      if (target > LevelResolver.totalLevels) target = LevelResolver.totalLevels;
                                       if (target < 1) target = 1;
                                       Navigator.push(
                                         context,
@@ -435,7 +442,7 @@ class _AdventureMapScreenState extends ConsumerState<AdventureMapScreen> {
                                     },
                                     child: Center(
                                       child: Text(
-                                        'Main Level $currentProgress',
+                                        'Main Level ${math.min(currentProgress, LevelResolver.totalLevels)}',
                                         style: GoogleFonts.fredoka(
                                           color: Colors.white,
                                           fontSize: 20,
@@ -544,7 +551,7 @@ class SnakePathPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (width <= 0) return;
 
-    final fullPath = _buildSnakeCurvePath(50);
+    final fullPath = _buildSnakeCurvePath(LevelResolver.totalLevels);
 
     final borderPaint = Paint()
       ..color = const Color(0xFF8D6E63).withOpacity(0.4)
@@ -570,7 +577,7 @@ class SnakePathPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     int limit = maxReachedLevel;
-    if (limit > 50) limit = 50;
+    if (limit > LevelResolver.totalLevels) limit = LevelResolver.totalLevels;
     if (limit > 1) {
       final unlockedPath = _buildSnakeCurvePath(limit);
       canvas.drawPath(unlockedPath, fgTrackPaint);

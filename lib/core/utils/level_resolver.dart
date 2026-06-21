@@ -58,6 +58,8 @@ import '../../features/matching/level_50.dart';
 
 
 class LevelResolver {
+  static const int totalLevels = 13;
+
   static Widget buildLevel(int levelId) {
     switch (levelId) {
       case 1:
