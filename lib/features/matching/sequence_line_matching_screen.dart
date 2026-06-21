@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
@@ -43,7 +44,7 @@ class ChallengeBoxData {
 
 class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchingScreen> with TickerProviderStateMixin {
   late List<ChallengeBoxData> _challenges;
-
+  bool _isDrawing = false;
 
   // Active drag state
   int? _activeChallengeId;
@@ -112,6 +113,17 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
     ];
   }
 
+  void _resetLevel() {
+    HapticService.light();
+    setState(() {
+      _initLevel();
+      _activeChallengeId = null;
+      _dragStartNode = null;
+      _currentDragPosition = null;
+      _isDrawing = false;
+    });
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -136,6 +148,7 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
         _activeChallengeId = challengeId;
         _dragStartNode = nextStartNumber;
         _currentDragPosition = localPos;
+        _isDrawing = true;
       });
     }
   }
@@ -182,6 +195,7 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
       _activeChallengeId = null;
       _dragStartNode = null;
       _currentDragPosition = null;
+      _isDrawing = false;
     });
   }
 
@@ -209,22 +223,50 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
             // Legend of sequence colors (Hexagons 1-5)
             _buildLegendCard(),
 
-            // Scrollable Grid of 4 Challenge Boxes
+            // 2x2 Grid of 4 Challenge Boxes (Fixed Height Layout)
             Expanded(
-              child: GridView.builder(
+              child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.9,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: _buildChallengeBox(0)),
+                          const SizedBox(width: 14),
+                          Expanded(child: _buildChallengeBox(1)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: _buildChallengeBox(2)),
+                          const SizedBox(width: 14),
+                          Expanded(child: _buildChallengeBox(3)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                itemCount: 4,
-                itemBuilder: (context, index) {
-                  return _buildChallengeBox(index);
-                },
               ),
             ),
+
+            // Symmetrical, Horizontally Centered Reset Button
+            TextButton.icon(
+              onPressed: _resetLevel,
+              icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
+              label: Text(
+                'Ulangi',
+                style: GoogleFonts.fredoka(
+                  color: Colors.blueGrey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -341,102 +383,134 @@ class _SequenceLineMatchingScreenState extends ConsumerState<SequenceLineMatchin
       builder: (context, constraints) {
         final boxSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-        return GestureDetector(
-          onPanStart: (details) => _handleDragStart(challengeId, details.localPosition, boxSize),
-          onPanUpdate: (details) => _handleDragUpdate(details.localPosition),
-          onPanEnd: (details) => _handleDragEnd(boxSize),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: challenge.isCompleted ? Colors.teal.shade300 : Colors.grey.shade300,
-                width: challenge.isCompleted ? 3.0 : 1.5,
+        return Listener(
+          key: ValueKey('challenge_box_$challengeId'),
+          onPointerDown: (PointerDownEvent event) {
+            setState(() {
+              _isDrawing = true;
+            });
+            void route(PointerEvent e) {
+              if (e is PointerUpEvent || e is PointerCancelEvent) {
+                GestureBinding.instance.pointerRouter.removeGlobalRoute(route);
+                setState(() {
+                  _isDrawing = false;
+                });
+              }
+            }
+            GestureBinding.instance.pointerRouter.addGlobalRoute(route);
+          },
+          child: RawGestureDetector(
+            gestures: <Type, GestureRecognizerFactory>{
+              EagerPanGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerPanGestureRecognizer>(
+                () => EagerPanGestureRecognizer(debugOwner: 'eagerPan'),
+                (EagerPanGestureRecognizer instance) {
+                  instance.onStart = (details) => _handleDragStart(challengeId, details.localPosition, boxSize);
+                  instance.onUpdate = (details) => _handleDragUpdate(details.localPosition);
+                  instance.onEnd = (details) => _handleDragEnd(boxSize);
+                  instance.onCancel = () {
+                    setState(() {
+                      _isDrawing = false;
+                      _activeChallengeId = null;
+                      _dragStartNode = null;
+                      _currentDragPosition = null;
+                    });
+                  };
+                },
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: challenge.isCompleted
-                      ? Colors.teal.withOpacity(0.05)
-                      : Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Completed & active drawing lines
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: LineConnectorPainter(
-                      nodes: challenge.nodes,
-                      completedConnections: challenge.completedConnections,
-                      isCurrentDragActive: _activeChallengeId == challengeId,
-                      dragStartNode: _dragStartNode,
-                      currentDragPosition: _currentDragPosition,
-                      boxSize: boxSize,
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: challenge.isCompleted ? Colors.teal.shade300 : Colors.grey.shade300,
+                  width: challenge.isCompleted ? 3.0 : 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: challenge.isCompleted
+                        ? Colors.teal.withOpacity(0.05)
+                        : Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Completed & active drawing lines
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: LineConnectorPainter(
+                        nodes: challenge.nodes,
+                        completedConnections: challenge.completedConnections,
+                        isCurrentDragActive: _activeChallengeId == challengeId,
+                        dragStartNode: _dragStartNode,
+                        currentDragPosition: _currentDragPosition,
+                        boxSize: boxSize,
+                      ),
                     ),
                   ),
-                ),
 
-                // Hexagon nodes positioned inside the stack
-                ...challenge.nodes.map((node) {
-                  final double x = node.position.dx * boxSize.width - 22; // Hexagon is 44x44
-                  final double y = node.position.dy * boxSize.height - 22;
+                  // Hexagon nodes positioned inside the stack
+                  ...challenge.nodes.map((node) {
+                    final double x = node.position.dx * boxSize.width - 22; // Hexagon is 44x44
+                    final double y = node.position.dy * boxSize.height - 22;
 
-                  // Box 1 (id 0) shows numbers inside, other boxes hide them (or show small dots)
-                  final bool showNumber = challenge.id == 0;
+                    // Box 1 (id 0) shows numbers inside, other boxes hide them (or show small dots)
+                    final bool showNumber = challenge.id == 0;
 
-                  return Positioned(
-                    left: x,
-                    top: y,
-                    child: ClipPath(
-                      clipper: HexagonClipper(),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        color: node.color,
-                        child: Center(
-                          child: showNumber
-                              ? Text(
-                                  '${node.number}',
-                                  style: GoogleFonts.fredoka(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                    return Positioned(
+                      left: x,
+                      top: y,
+                      child: ClipPath(
+                        clipper: HexagonClipper(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          color: node.color,
+                          child: Center(
+                            child: showNumber
+                                ? Text(
+                                    '${node.number}',
+                                    style: GoogleFonts.fredoka(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white60,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                )
-                              : Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white60,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+
+                  // Complete Badge icon
+                  if (challenge.isCompleted)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.teal.shade400,
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 14,
                         ),
                       ),
                     ),
-                  );
-                }),
-
-                // Complete Badge icon
-                if (challenge.isCompleted)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Colors.teal.shade400,
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -562,5 +636,15 @@ class LineConnectorPainter extends CustomPainter {
     return oldDelegate.completedConnections.length != completedConnections.length ||
         oldDelegate.isCurrentDragActive != isCurrentDragActive ||
         oldDelegate.currentDragPosition != currentDragPosition;
+  }
+}
+
+class EagerPanGestureRecognizer extends PanGestureRecognizer {
+  EagerPanGestureRecognizer({super.debugOwner});
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    resolve(GestureDisposition.accepted);
   }
 }
