@@ -261,16 +261,18 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          // Symmetric Reset Button
-          TextButton.icon(
-            onPressed: _resetLevel,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
-            label: Text(
-              'Ulangi',
-              style: GoogleFonts.fredoka(
-                color: Colors.blueGrey,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          // Symmetric Reset Button centered
+          Center(
+            child: TextButton.icon(
+              onPressed: _resetLevel,
+              icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
+              label: Text(
+                'Ulangi',
+                style: GoogleFonts.fredoka(
+                  color: Colors.blueGrey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -508,46 +510,88 @@ class ShapeSegmentPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final destRect = Rect.fromLTWH(6, 6, size.width - 12, size.height - 12);
+    final rect = Rect.fromLTWH(6, 6, size.width - 12, size.height - 12);
     
-    final double s = size.width * 0.45;
-    Rect cutoutRect;
-    switch (shapeId) {
-      case 'square': cutoutRect = Rect.fromLTWH(size.width - s, size.height - s, s, s); break;
-      case 'circle': cutoutRect = Rect.fromLTWH(0, size.height - s, s, s); break;
-      case 'pentagon': cutoutRect = Rect.fromLTWH(size.width - s, 0, s, s); break;
-      case 'heart': cutoutRect = Rect.fromLTWH(0, 0, s, s); break;
-      default: cutoutRect = Rect.zero;
-    }
-
-    double scaleX = destRect.width / cutoutRect.width;
-    double scaleY = destRect.height / cutoutRect.height;
-    double translateX = destRect.left - cutoutRect.left * scaleX;
-    double translateY = destRect.top - cutoutRect.top * scaleY;
-
     final paint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: _getGradientColors(),
-      ).createShader(destRect)
+      ).createShader(rect)
       ..style = PaintingStyle.fill;
 
-    final dashPaint = Paint()
-      ..color = Colors.grey.shade400
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+    switch (shapeId) {
+      case 'square':
+        // A solid green square with slightly rounded corners (matching the target cutout portion)
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(8)),
+          paint,
+        );
+        break;
 
-    canvas.save();
-    canvas.clipRect(destRect);
-    canvas.translate(translateX, translateY);
-    canvas.scale(scaleX, scaleY);
-    
-    Path shapePath = _getShapePath(size);
-    canvas.drawPath(shapePath, paint);
-    canvas.restore();
+      case 'circle':
+        // A yellow quarter circle (sector)
+        // Curves from top-left to bottom-right, with right angle at bottom-left corner of the rect
+        final path = Path()
+          ..moveTo(rect.left, rect.top)
+          ..arcToPoint(
+            Offset(rect.right, rect.bottom),
+            radius: Radius.circular(rect.width),
+            clockwise: false,
+          )
+          ..lineTo(rect.left, rect.bottom)
+          ..close();
+        canvas.drawPath(path, paint);
+        break;
 
-    _drawInnerDashes(canvas, destRect, dashPaint);
+      case 'pentagon':
+        // A blue right triangle representing the cutout portion of the pentagon
+        // Vertices at: top-left (rect.left, rect.top), bottom-right (rect.right, rect.bottom), bottom-left (rect.left, rect.bottom)
+        final path = Path()
+          ..moveTo(rect.left, rect.top)
+          ..lineTo(rect.right, rect.bottom)
+          ..lineTo(rect.left, rect.bottom)
+          ..close();
+        canvas.drawPath(path, paint);
+        break;
+
+      case 'heart':
+        // A red shape representing the top-left curve/lobe of the heart
+        canvas.save();
+        canvas.clipRect(rect);
+        
+        // The original heart cutout is at the top-left of a 100x100 virtual canvas: Rect.fromLTWH(0, 0, 40, 40)
+        const double virtualSize = 100.0;
+        const double s = 40.0; // 0.4 * virtualSize
+        
+        final double scaleX = rect.width / s;
+        final double scaleY = rect.height / s;
+        
+        canvas.translate(rect.left, rect.top);
+        canvas.scale(scaleX, scaleY);
+        
+        final heartPath = Path();
+        const double w = virtualSize;
+        const double h = virtualSize;
+        heartPath.moveTo(w * 0.5, h);
+        heartPath.cubicTo(w * 0.2, h * 0.7, 0, h * 0.5, 0, h * 0.3);
+        heartPath.cubicTo(0, h * 0.1, w * 0.25, 0, w * 0.5, h * 0.2);
+        heartPath.cubicTo(w * 0.75, 0, w, h * 0.1, w, h * 0.3);
+        heartPath.cubicTo(w, h * 0.5, w * 0.8, h * 0.7, w * 0.5, h);
+        heartPath.close();
+        
+        final heartPaint = Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE57373), Color(0xFFD32F2F)],
+          ).createShader(Rect.fromLTWH(0, 0, virtualSize, virtualSize))
+          ..style = PaintingStyle.fill;
+        
+        canvas.drawPath(heartPath, heartPaint);
+        canvas.restore();
+        break;
+    }
   }
 
   List<Color> _getGradientColors() {
@@ -560,73 +604,6 @@ class ShapeSegmentPainter extends CustomPainter {
     }
   }
 
-  Path _getShapePath(Size size) {
-    Path path = Path();
-    double w = size.width;
-    double h = size.height;
-
-    switch (shapeId) {
-      case 'square':
-        path.addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, h), const Radius.circular(16)));
-        break;
-      case 'circle':
-        path.addOval(Rect.fromLTWH(0, 0, w, h));
-        break;
-      case 'pentagon':
-        path.moveTo(w / 2, 0);
-        path.lineTo(w, h * 0.38);
-        path.lineTo(w * 0.82, h);
-        path.lineTo(w * 0.18, h);
-        path.lineTo(0, h * 0.38);
-        path.close();
-        break;
-      case 'heart':
-        path.moveTo(w * 0.5, h);
-        path.cubicTo(w * 0.2, h * 0.7, 0, h * 0.5, 0, h * 0.3);
-        path.cubicTo(0, h * 0.1, w * 0.25, 0, w * 0.5, h * 0.2);
-        path.cubicTo(w * 0.75, 0, w, h * 0.1, w, h * 0.3);
-        path.cubicTo(w, h * 0.5, w * 0.8, h * 0.7, w * 0.5, h);
-        path.close();
-        break;
-    }
-    return path;
-  }
-
-  void _drawInnerDashes(Canvas canvas, Rect rect, Paint paint) {
-    const double dashWidth = 5;
-    const double dashSpace = 3;
-    
-    void drawDashedLine(Offset p1, Offset p2) {
-      double distance = (p1 - p2).distance;
-      for (double i = 0; i < distance; i += dashWidth + dashSpace) {
-        canvas.drawLine(
-          Offset.lerp(p1, p2, i / distance)!,
-          Offset.lerp(p1, p2, math.min(i + dashWidth, distance) / distance)!,
-          paint,
-        );
-      }
-    }
-
-    switch (shapeId) {
-      case 'square': // top and left
-        drawDashedLine(rect.topLeft, rect.topRight);
-        drawDashedLine(rect.topLeft, rect.bottomLeft);
-        break;
-      case 'circle': // top and right
-        drawDashedLine(rect.topLeft, rect.topRight);
-        drawDashedLine(rect.topRight, rect.bottomRight);
-        break;
-      case 'pentagon': // bottom and left
-        drawDashedLine(rect.bottomLeft, rect.bottomRight);
-        drawDashedLine(rect.topLeft, rect.bottomLeft);
-        break;
-      case 'heart': // bottom and right
-        drawDashedLine(rect.bottomLeft, rect.bottomRight);
-        drawDashedLine(rect.topRight, rect.bottomRight);
-        break;
-    }
-  }
-
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

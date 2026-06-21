@@ -6,7 +6,6 @@ import 'package:apkuas/features/level_selection_screen.dart';
 import 'package:apkuas/features/adventure_map_screen.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
-import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/features/awards_screen.dart';
 import 'package:apkuas/features/parents/parent_gate_screen.dart';
 import 'package:apkuas/features/parents/parent_dashboard_screen.dart';
@@ -425,7 +424,6 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
   }
 
   Widget _buildLevelGrid() {
-    final currentProgress = ref.watch(progressProvider);
     return Column(
       children: [
         Row(
@@ -453,24 +451,21 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
           ),
-          itemCount: LevelResolver.totalLevels,
+          itemCount: 13,
           itemBuilder: (context, index) {
             int levelId = index + 1;
-            bool isUnlocked = levelId <= currentProgress;
             return GestureDetector(
-              onTap: isUnlocked
-                  ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LevelResolver.buildLevel(levelId),
-                        ),
-                      );
-                    }
-                  : null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LevelResolver.buildLevel(levelId),
+                  ),
+                );
+              },
               child: Container(
                 decoration: BoxDecoration(
-                  color: isUnlocked ? Colors.white : Colors.grey.shade100,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
@@ -478,23 +473,16 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen> {
                       blurRadius: 5,
                     ),
                   ],
-                  border: isUnlocked ? null : Border.all(color: Colors.grey.shade300),
                 ),
                 child: Center(
-                  child: isUnlocked
-                      ? Text(
-                          '$levelId',
-                          style: GoogleFonts.fredoka(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: CilikTheme.tealTua,
-                          ),
-                        )
-                      : Icon(
-                          Icons.lock_rounded,
-                          color: Colors.grey.shade400,
-                          size: 20,
-                        ),
+                  child: Text(
+                    '$levelId',
+                    style: GoogleFonts.fredoka(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: CilikTheme.tealTua,
+                    ),
+                  ),
                 ),
               ),
             );
