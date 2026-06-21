@@ -520,6 +520,11 @@ class ShapeSegmentPainter extends CustomPainter {
       ).createShader(rect)
       ..style = PaintingStyle.fill;
 
+    final dashPaint = Paint()
+      ..color = Colors.grey.shade400
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
     switch (shapeId) {
       case 'square':
         // A solid green square with slightly rounded corners (matching the target cutout portion)
@@ -527,21 +532,29 @@ class ShapeSegmentPainter extends CustomPainter {
           RRect.fromRectAndRadius(rect, const Radius.circular(8)),
           paint,
         );
+
+        // Draw inner dashed lines on top and left edges
+        _drawDashedLine(canvas, rect.topLeft, rect.topRight, dashPaint);
+        _drawDashedLine(canvas, rect.topLeft, rect.bottomLeft, dashPaint);
         break;
 
       case 'circle':
         // A yellow quarter circle (sector)
-        // Curves from top-left to bottom-right, with right angle at bottom-left corner of the rect
+        // Convex arc curving towards bottom-left, with right angle at top-right corner of the rect
         final path = Path()
-          ..moveTo(rect.left, rect.top)
+          ..moveTo(rect.right, rect.bottom)
           ..arcToPoint(
-            Offset(rect.right, rect.bottom),
+            Offset(rect.left, rect.top),
             radius: Radius.circular(rect.width),
-            clockwise: false,
+            clockwise: true,
           )
-          ..lineTo(rect.left, rect.bottom)
+          ..lineTo(rect.right, rect.top)
           ..close();
         canvas.drawPath(path, paint);
+
+        // Draw inner dashed lines on top and right edges (the straight cut lines)
+        _drawDashedLine(canvas, Offset(rect.left, rect.top), Offset(rect.right, rect.top), dashPaint);
+        _drawDashedLine(canvas, Offset(rect.right, rect.top), Offset(rect.right, rect.bottom), dashPaint);
         break;
 
       case 'pentagon':
@@ -553,6 +566,10 @@ class ShapeSegmentPainter extends CustomPainter {
           ..lineTo(rect.left, rect.bottom)
           ..close();
         canvas.drawPath(path, paint);
+
+        // Draw inner dashed lines on left and bottom edges
+        _drawDashedLine(canvas, rect.topLeft, rect.bottomLeft, dashPaint);
+        _drawDashedLine(canvas, rect.bottomLeft, rect.bottomRight, dashPaint);
         break;
 
       case 'heart':
@@ -590,7 +607,24 @@ class ShapeSegmentPainter extends CustomPainter {
         
         canvas.drawPath(heartPath, heartPaint);
         canvas.restore();
+
+        // Draw inner dashed lines on bottom and right edges of the lobe
+        _drawDashedLine(canvas, Offset(rect.left, rect.bottom), Offset(rect.right, rect.bottom), dashPaint);
+        _drawDashedLine(canvas, Offset(rect.right, rect.top), Offset(rect.right, rect.bottom), dashPaint);
         break;
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
+    const double dashWidth = 4;
+    const double dashSpace = 3;
+    double distance = (p1 - p2).distance;
+    for (double i = 0; i < distance; i += dashWidth + dashSpace) {
+      canvas.drawLine(
+        Offset.lerp(p1, p2, i / distance)!,
+        Offset.lerp(p1, p2, math.min(i + dashWidth, distance) / distance)!,
+        paint,
+      );
     }
   }
 
