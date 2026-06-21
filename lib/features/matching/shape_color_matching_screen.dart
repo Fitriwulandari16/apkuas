@@ -32,7 +32,6 @@ class _GameItem {
 class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScreen> {
   late List<_GameItem> targets;
   Set<int> matchedIds = {};
-  Color? selectedColor;
 
   final List<Color> _availableColors = [
     Colors.lightBlue.shade400,
@@ -56,7 +55,6 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
 
   void _initLevel() {
     setState(() {
-      selectedColor = null;
       matchedIds.clear();
       final random = math.Random();
       List<_GameItem> generatedTargets = [];
@@ -91,19 +89,8 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
     );
   }
 
-  bool _handleColorTap(_GameItem targetItem, Color? color) {
-    if (color == null) return false;
-
-    // Helper comparison
-    bool match = false;
-    if (targetItem.color == Colors.lightBlue.shade400 && color == Colors.lightBlue.shade400) match = true;
-    if (targetItem.color == Colors.lightGreen.shade400 && color == Colors.lightGreen.shade400) match = true;
-    if (targetItem.color == Colors.amber.shade400 && color == Colors.amber.shade400) match = true;
-    
-    // Check custom standard matching
-    if (targetItem.color.value == color.value) match = true;
-
-    if (match) {
+  bool _handleShapeDrop(_GameItem targetItem, ShapeType shapeType) {
+    if (targetItem.shape == shapeType) {
       setState(() {
         matchedIds.add(targetItem.id);
       });
@@ -155,8 +142,7 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                           return _TargetCard(
                             target: target,
                             isMatched: isMatched,
-                            selectedColor: selectedColor,
-                            onColorSubmitted: (color) => _handleColorTap(target, color),
+                            onShapeDropped: (shape) => _handleShapeDrop(target, shape),
                           );
                         },
                       ),
@@ -191,54 +177,72 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Row of Color Pickers
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _availableColors.map((color) {
-              final isSelected = selectedColor == color;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedColor = color;
-                  });
-                  HapticFeedback.selectionClick();
-                },
-                child: AnimatedScale(
-                  scale: isSelected ? 1.15 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected 
-                          ? Border.all(color: Colors.black87, width: 3.5)
-                          : Border.all(color: Colors.white, width: 2.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        )
-                      ],
+          // White rounded pill-shape Shape Palette card (horizontal centered)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.grey.shade200, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: _availableShapes.map((shapeType) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                  child: Draggable<ShapeType>(
+                    data: shapeType,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: Opacity(
+                        opacity: 0.8,
+                        child: _ShapePainterWidget(
+                          type: shapeType,
+                          color: CilikTheme.tealTua,
+                          size: 50,
+                          isDashed: true,
+                        ),
+                      ),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.4,
+                      child: _ShapePainterWidget(
+                        type: shapeType,
+                        color: Colors.grey.shade400,
+                        size: 40,
+                        isDashed: true,
+                      ),
+                    ),
+                    child: _ShapePainterWidget(
+                      type: shapeType,
+                      color: CilikTheme.tealTua,
+                      size: 40,
+                      isDashed: true,
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
           const SizedBox(height: 16),
           // Symmetric Reset Button
           TextButton.icon(
             onPressed: _initLevel,
             icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
-            label: const Text(
+            label: Text(
               'Ulangi',
-              style: TextStyle(
+              style: GoogleFonts.fredoka(
                 color: Colors.blueGrey,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 16,
               ),
             ),
           ),
@@ -285,11 +289,11 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.touch_app_rounded, color: Colors.orange, size: 22),
+          const Icon(Icons.gesture_rounded, color: Colors.orange, size: 22),
           const SizedBox(width: 10),
           Flexible(
             child: Text(
-              'Pilih warna di bawah, lalu lengkapi bentuk yang sesuai!',
+              'Tarik bentuk di bawah ke pasangan yang sesuai!',
               style: GoogleFonts.fredoka(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -307,14 +311,12 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
 class _TargetCard extends StatefulWidget {
   final _GameItem target;
   final bool isMatched;
-  final Color? selectedColor;
-  final Function(Color?) onColorSubmitted;
+  final Function(ShapeType) onShapeDropped;
 
   const _TargetCard({
     required this.target,
     required this.isMatched,
-    required this.selectedColor,
-    required this.onColorSubmitted,
+    required this.onShapeDropped,
   });
 
   @override
@@ -338,61 +340,70 @@ class _TargetCardState extends State<_TargetCard> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (widget.isMatched) return;
-        bool correct = widget.onColorSubmitted(widget.selectedColor);
+    return DragTarget<ShapeType>(
+      onWillAccept: (data) => !widget.isMatched,
+      onAccept: (data) {
+        bool correct = widget.onShapeDropped(data);
         if (!correct) {
           _shakeController.forward(from: 0);
         }
       },
-      child: AnimatedBuilder(
-        animation: _shakeController,
-        builder: (context, child) {
-          final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
-          return Transform.translate(
-            offset: Offset(offset, 0),
-            child: child,
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.target.color,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: widget.target.color.withOpacity(0.3),
-                blurRadius: widget.isMatched ? 4 : 10,
-                offset: const Offset(0, 4),
-              )
-            ],
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+
+        return AnimatedBuilder(
+          animation: _shakeController,
+          builder: (context, child) {
+            final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
+            return Transform.translate(
+              offset: Offset(offset, 0),
+              child: child,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: widget.target.color,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isHovering ? Colors.white : Colors.transparent,
+                width: 3.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.target.color.withOpacity(0.3),
+                  blurRadius: widget.isMatched ? 4 : 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Center(
+              child: widget.isMatched
+                  ? TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.5, end: 1.0),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.elasticOut,
+                      builder: (context, val, child) {
+                        return Transform.scale(
+                          scale: val,
+                          child: _ShapePainterWidget(
+                            type: widget.target.shape,
+                            color: Colors.white,
+                            size: 50,
+                          ),
+                        );
+                      },
+                    )
+                  : _ShapePainterWidget(
+                      type: widget.target.shape,
+                      color: Colors.white,
+                      size: 50,
+                      isDashed: true,
+                    ),
+            ),
           ),
-          child: Center(
-            child: widget.isMatched
-                ? TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.5, end: 1.0),
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.elasticOut,
-                    builder: (context, val, child) {
-                      return Transform.scale(
-                        scale: val,
-                        child: _ShapePainterWidget(
-                          type: widget.target.shape, 
-                          color: widget.target.color,
-                          size: 50,
-                        ),
-                      );
-                    },
-                  )
-                : _ShapePainterWidget(
-                    type: widget.target.shape,
-                    color: Colors.white,
-                    size: 50,
-                    isDashed: true,
-                  ),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

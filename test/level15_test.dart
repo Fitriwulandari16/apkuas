@@ -15,7 +15,7 @@ void main() {
     await Hive.openBox('progress');
   });
 
-  testWidgets('ShapeColorMatchingScreen (Level 15) Picker and Tap logic test', (WidgetTester tester) async {
+  testWidgets('ShapeColorMatchingScreen (Level 15) Drag and Drop logic test', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -34,59 +34,62 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify instructions
-    expect(find.text('Pilih warna di bawah, lalu lengkapi bentuk yang sesuai!'), findsOneWidget);
+    expect(find.text('Tarik bentuk di bawah ke pasangan yang sesuai!'), findsOneWidget);
 
     final dynamic state = tester.state(find.byType(ShapeColorMatchingScreen));
     expect(state.matchedIds.isEmpty, isTrue);
 
-    // Pickers: Light Blue, Light Green, Amber
-    final bluePicker = find.byWidgetPredicate((widget) => widget is Container && widget.decoration is BoxDecoration && (widget.decoration as BoxDecoration).color == Colors.lightBlue.shade400 && (widget.decoration as BoxDecoration).shape == BoxShape.circle);
-    final greenPicker = find.byWidgetPredicate((widget) => widget is Container && widget.decoration is BoxDecoration && (widget.decoration as BoxDecoration).color == Colors.lightGreen.shade400 && (widget.decoration as BoxDecoration).shape == BoxShape.circle);
-    final yellowPicker = find.byWidgetPredicate((widget) => widget is Container && widget.decoration is BoxDecoration && (widget.decoration as BoxDecoration).color == Colors.amber.shade400 && (widget.decoration as BoxDecoration).shape == BoxShape.circle);
+    // Verify all 5 unique shapes are rendered as draggables at the bottom
+    for (var shapeType in ShapeType.values) {
+      final shapeDraggable = find.byWidgetPredicate((w) => w is Draggable<ShapeType> && w.data == shapeType);
+      expect(shapeDraggable, findsOneWidget);
+    }
 
-    expect(bluePicker, findsOneWidget);
-    expect(greenPicker, findsOneWidget);
-    expect(yellowPicker, findsOneWidget);
-
-    // Tap first target card (at index 0)
+    // Solve the first target to test drag validation and resetting
     final firstTarget = state.targets[0];
-    final targetCardFinder = find.byWidgetPredicate((w) => w is GestureDetector && w.child is AnimatedBuilder);
-    
-    // Tap without color: nothing
-    await tester.tap(targetCardFinder.at(0), warnIfMissed: false);
-    await tester.pumpAndSettle();
-    expect(state.matchedIds.contains(firstTarget.id), isFalse);
+    final firstTargetCardFinder = find.byType(DragTarget<ShapeType>).at(0);
+    final correctDraggableFinder = find.byWidgetPredicate((w) => w is Draggable<ShapeType> && w.data == firstTarget.shape);
 
-    // Solve all targets by selecting corresponding color and tapping
+    // Test drop correct shape
+    TestGesture dragGesture = await tester.startGesture(tester.getCenter(correctDraggableFinder));
+    await dragGesture.moveTo(tester.getCenter(firstTargetCardFinder));
+    await dragGesture.up();
+    await tester.pumpAndSettle();
+
+    expect(state.matchedIds.contains(firstTarget.id), isTrue);
+
+    // Test Reset Button
+    final resetBtn = find.text('Ulangi');
+    expect(resetBtn, findsOneWidget);
+    await tester.tap(resetBtn);
+    await tester.pumpAndSettle();
+
+    // Verify reset cleared progress
+    expect(state.matchedIds.isEmpty, isTrue);
+
+    // Now solve all targets correctly
     for (int i = 0; i < state.targets.length; i++) {
       final target = state.targets[i];
-      
-      // Select correct color
-      if (target.color == Colors.lightBlue.shade400) {
-        await tester.tap(bluePicker, warnIfMissed: false);
-      } else if (target.color == Colors.lightGreen.shade400) {
-        await tester.tap(greenPicker, warnIfMissed: false);
-      } else {
-        await tester.tap(yellowPicker, warnIfMissed: false);
-      }
-      await tester.pumpAndSettle();
+      final targetCardFinder = find.byType(DragTarget<ShapeType>).at(i);
+      final shapeDraggable = find.byWidgetPredicate((w) => w is Draggable<ShapeType> && w.data == target.shape);
 
-      // Tap card
-      await tester.tap(targetCardFinder.at(i), warnIfMissed: false);
+      TestGesture gesture = await tester.startGesture(tester.getCenter(shapeDraggable));
+      await gesture.moveTo(tester.getCenter(targetCardFinder));
+      await gesture.up();
+
       if (i == state.targets.length - 1) {
-        await tester.pump(); // Pump once on final item to avoid celebration timeout
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
       } else {
         await tester.pumpAndSettle();
       }
     }
 
-    // Verify celebration overlay
-    await tester.pump(const Duration(milliseconds: 500));
+    // Verify victory/celebration overlay
     await tester.pump(const Duration(seconds: 2, milliseconds: 500));
-
     expect(find.text('Hebat Sekali!'), findsOneWidget);
 
-    // Clear timers
+    // Let victory overlays fade or timers clear
     await tester.pump(const Duration(seconds: 5));
   });
 }
