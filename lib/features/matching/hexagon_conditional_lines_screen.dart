@@ -309,27 +309,14 @@ class _HexagonConditionalLinesScreenState extends ConsumerState<HexagonCondition
   Widget _buildLegendCell(HexColor colorType, String lineType, String label) {
     final dummyItem = HexagonItem(id: -1, colorType: colorType, isCorrect: true, drawnLine: lineType);
 
-    return Column(
-      children: [
-        SizedBox(
-          width: 50,
-          height: 46,
-          child: CustomPaint(
-            painter: HexagonCellPainter(
-              item: dummyItem,
-            ),
-          ),
+    return SizedBox(
+      width: 50,
+      height: 46,
+      child: CustomPaint(
+        painter: HexagonCellPainter(
+          item: dummyItem,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.fredoka(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -446,72 +433,115 @@ class HexagonCellPainter extends CustomPainter {
     this.isHovered = false,
   });
 
-  Path _getHexagonPath(Size size) {
+  Path _getRoundedHexagonPath(Size size) {
     final path = Path();
-    double w = size.width;
-    double h = size.height;
-    path.moveTo(w * 0.25, 0);
-    path.lineTo(w * 0.75, 0);
-    path.lineTo(w, h * 0.5);
-    path.lineTo(w * 0.75, h);
-    path.lineTo(w * 0.25, h);
-    path.lineTo(0, h * 0.5);
+    final double w = size.width;
+    final double h = size.height;
+
+    // Corner vertices of a horizontal flat-topped hexagon
+    final vertices = [
+      Offset(w * 0.25, 0),
+      Offset(w * 0.75, 0),
+      Offset(w, h * 0.5),
+      Offset(w * 0.75, h),
+      Offset(w * 0.25, h),
+      Offset(0, h * 0.5),
+    ];
+
+    // t represents the fraction of the edge used for rounding
+    const double t = 0.16;
+
+    Offset interpolate(Offset p1, Offset p2, double fraction) {
+      return Offset(p1.dx + (p2.dx - p1.dx) * fraction, p1.dy + (p2.dy - p1.dy) * fraction);
+    }
+
+    // Start path at the end point of corner 5's curve (between corner 5 and corner 0)
+    final startPt = interpolate(vertices[5], vertices[0], t);
+    path.moveTo(startPt.dx, startPt.dy);
+
+    for (int i = 0; i < 6; i++) {
+      final prev = vertices[(i - 1 + 6) % 6];
+      final curr = vertices[i];
+      final next = vertices[(i + 1) % 6];
+
+      final curveStart = interpolate(curr, prev, t);
+      final curveEnd = interpolate(curr, next, t);
+
+      path.lineTo(curveStart.dx, curveStart.dy);
+      path.quadraticBezierTo(curr.dx, curr.dy, curveEnd.dx, curveEnd.dy);
+    }
+
     path.close();
     return path;
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = _getHexagonPath(size);
+    final path = _getRoundedHexagonPath(size);
+    final double w = size.width;
+    final double h = size.height;
 
-    // 1. Draw Hexagon Fill Background
+    // 1. Draw Subtle Shadow
+    canvas.drawShadow(
+      path,
+      Colors.black.withOpacity(0.25),
+      isHovered ? 4.0 : 2.5,
+      true,
+    );
+
+    // 2. Draw Hexagon Fill Background with a Soft Gradient
+    final baseColor = item.color;
+    final colorLight = Color.alphaBlend(Colors.white.withOpacity(0.18), baseColor);
+    final colorDark = Color.alphaBlend(Colors.black.withOpacity(0.08), baseColor);
+
     final fillPaint = Paint()
-      ..color = item.color.withOpacity(isHovered ? 0.95 : 0.85)
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorLight,
+          colorDark,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, fillPaint);
 
-    // 2. Draw Hexagon Highlight Flare (Top curve effect) for textbook realism
-    final flarePaint = Paint()
-      ..color = Colors.white.withOpacity(0.25)
+    // 3. Draw Sphere-Style Glossy White Highlight on top-left
+    final highlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.35)
       ..style = PaintingStyle.fill;
-    final flarePath = Path();
-    flarePath.moveTo(size.width * 0.25, 0);
-    flarePath.lineTo(size.width * 0.75, 0);
-    flarePath.lineTo(size.width * 0.85, size.height * 0.2);
-    flarePath.lineTo(size.width * 0.15, size.height * 0.2);
-    flarePath.close();
-    canvas.drawPath(flarePath, flarePaint);
+    canvas.drawOval(
+      Rect.fromLTWH(w * 0.22, h * 0.12, w * 0.35, h * 0.18),
+      highlightPaint,
+    );
 
-    // 3. Draw Hexagon Outline
+    // 4. Draw Hexagon Outline Border
     final strokePaint = Paint()
-      ..color = isHovered ? Colors.amberAccent : Colors.white.withOpacity(0.9)
-      ..strokeWidth = isHovered ? 3.5 : 2.5
+      ..color = isHovered ? Colors.amberAccent : Colors.white.withOpacity(0.8)
+      ..strokeWidth = isHovered ? 3.5 : 2.2
       ..style = PaintingStyle.stroke;
     canvas.drawPath(path, strokePaint);
 
-    // 4. Draw Correct Line (if completed)
+    // 5. Draw Correct Line (if completed)
     if (item.isCorrect && item.drawnLine != null) {
       final linePaint = Paint()
         ..color = const Color(0xFF263238)
-        ..strokeWidth = 4.5
+        ..strokeWidth = 5.0
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
-      double w = size.width;
-      double h = size.height;
-
       switch (item.drawnLine) {
         case '—':
-          canvas.drawLine(Offset(w * -0.05, h * 0.5), Offset(w * 1.05, h * 0.5), linePaint);
+          canvas.drawLine(Offset(w * 0.05, h * 0.5), Offset(w * 0.95, h * 0.5), linePaint);
           break;
         case '|':
-          canvas.drawLine(Offset(w * 0.5, h * -0.05), Offset(w * 0.5, h * 1.05), linePaint);
+          canvas.drawLine(Offset(w * 0.5, h * 0.05), Offset(w * 0.5, h * 0.95), linePaint);
           break;
         case '\\':
-          canvas.drawLine(Offset(w * 0.12, h * 0.12), Offset(w * 0.88, h * 0.88), linePaint);
+          canvas.drawLine(Offset(w * 0.18, h * 0.18), Offset(w * 0.82, h * 0.82), linePaint);
           break;
         case '/':
-          canvas.drawLine(Offset(w * 0.12, h * 0.88), Offset(w * 0.88, h * 0.12), linePaint);
+          canvas.drawLine(Offset(w * 0.18, h * 0.82), Offset(w * 0.82, h * 0.18), linePaint);
           break;
       }
     }

@@ -309,27 +309,14 @@ class _CircleConditionalPatternsScreenState extends ConsumerState<CircleConditio
   Widget _buildLegendCell(CircleColor colorType, String pattern, String label) {
     final dummyItem = CircleItem(id: -1, colorType: colorType, isCorrect: true, placedPattern: pattern);
 
-    return Column(
-      children: [
-        SizedBox(
-          width: 46,
-          height: 46,
-          child: CustomPaint(
-            painter: CircleCellPainter(
-              item: dummyItem,
-            ),
-          ),
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: CustomPaint(
+        painter: CircleCellPainter(
+          item: dummyItem,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.fredoka(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -450,39 +437,58 @@ class CircleCellPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double radius = size.width / 2;
     final center = Offset(radius, radius);
+    final double w = size.width;
+    final double h = size.height;
 
-    // 1. Draw Circle Fill Background
+    // 1. Draw Subtle Shadow
+    final path = Path()..addOval(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawShadow(
+      path,
+      Colors.black.withOpacity(0.22),
+      isHovered ? 4.0 : 2.5,
+      true,
+    );
+
+    // 2. Draw Circle Fill Background with Soft Gradient
+    final baseColor = item.color;
+    final colorLight = Color.alphaBlend(Colors.white.withOpacity(0.18), baseColor);
+    final colorDark = Color.alphaBlend(Colors.black.withOpacity(0.08), baseColor);
+
     final fillPaint = Paint()
-      ..color = item.color.withOpacity(isHovered ? 0.95 : 0.85)
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorLight,
+          colorDark,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, fillPaint);
 
-    // 2. Draw Sphere-Style Glossy White Highlight on top-left
+    // 3. Draw Sphere-Style Glossy White Highlight on top-left
     final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.28)
+      ..color = Colors.white.withOpacity(0.35)
       ..style = PaintingStyle.fill;
     canvas.drawOval(
-      Rect.fromLTWH(radius * 0.2, radius * 0.2, radius * 0.6, radius * 0.4),
+      Rect.fromLTWH(w * 0.22, h * 0.12, w * 0.35, h * 0.18),
       highlightPaint,
     );
 
-    // 3. Draw Circle White Border
+    // 4. Draw Circle White Border
     final strokePaint = Paint()
-      ..color = isHovered ? Colors.amberAccent : Colors.white.withOpacity(0.9)
-      ..strokeWidth = isHovered ? 3.5 : 2.5
+      ..color = isHovered ? Colors.amberAccent : Colors.white.withOpacity(0.8)
+      ..strokeWidth = isHovered ? 3.5 : 2.2
       ..style = PaintingStyle.stroke;
     canvas.drawCircle(center, radius, strokePaint);
 
-    // 4. Draw Placed Pattern
+    // 5. Draw Placed Pattern
     if (item.isCorrect && item.placedPattern != null) {
       final linePaint = Paint()
         ..color = const Color(0xFF212121)
-        ..strokeWidth = 4.5
+        ..strokeWidth = 5.0
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
-
-      double w = size.width;
-      double h = size.height;
 
       switch (item.placedPattern) {
         case 'x':
