@@ -111,13 +111,7 @@ void main() {
 
     expect(state.isAllSolved, isTrue);
 
-    // Click "Selesai" button
-    final selesaiFinder = find.text('Selesai');
-    expect(selesaiFinder, findsOneWidget);
-    await tester.tap(selesaiFinder);
-
-    // Verify celebration overlay
-    await tester.pump();
+    // Verify celebration overlay (gameWin is triggered automatically with 400ms delay)
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(seconds: 2, milliseconds: 500));
 

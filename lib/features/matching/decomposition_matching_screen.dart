@@ -133,6 +133,11 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
     if (item.isCorrect && isColorMatch) {
       setState(() {
         selectedItems[item.id] = true;
+        if (isTopSolved && isBottomSolved) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            gameWin();
+          });
+        }
       });
       SoundService.playSuccess();
       HapticService.success();
@@ -272,37 +277,18 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
             }).toList(),
           ),
           const SizedBox(height: 12),
-          // Center Submit / Reset buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton.icon(
-                onPressed: _resetLevel,
-                icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
-                label: const Text(
-                  'Ulangi',
-                  style: TextStyle(
-                    color: Colors.blueGrey,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
+          // Center Reset button
+          TextButton.icon(
+            onPressed: _resetLevel,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
+            label: const Text(
+              'Ulangi',
+              style: TextStyle(
+                color: Colors.blueGrey,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
-              if (isAllSolved)
-                ElevatedButton(
-                  onPressed: gameWin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CilikTheme.tealTua,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  child: Text(
-                    'Selesai',
-                    style: GoogleFonts.fredoka(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-            ],
+            ),
           ),
         ],
       ),
