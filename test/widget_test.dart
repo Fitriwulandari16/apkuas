@@ -20,7 +20,7 @@ void main() {
       ),
     );
 
-    // Settle the SplashScreen initialization and fade transition
+    // Settle the app initialization and rendering
     await tester.idle();
     await tester.pumpAndSettle();
 
