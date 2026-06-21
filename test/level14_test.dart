@@ -49,14 +49,11 @@ void main() {
     await tester.tap(greenPicker, warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    final List<dynamic> allItems = [...state.topGridItems, ...state.bottomGridItems];
-    // Tap and solve all correct items directly through state triggering or tapping
-    // For simplicity, let's test tapping on correct grid shapes
-    // To identify each item in the grid, we can look at the grid lists
-    // Let's solve them step by step:
-    for (var item in allItems) {
+    // 1. Solve Tantangan A (Top Grid)
+    for (int i = 0; i < state.topGridItems.length; i++) {
+      final item = state.topGridItems[i];
       if (item.isCorrect) {
-        // Select its color first
+        // Select correct color
         Color pickerColor = item.color;
         if (pickerColor == Colors.yellow.shade700) {
           await tester.tap(yellowPicker, warnIfMissed: false);
@@ -69,17 +66,45 @@ void main() {
         }
         await tester.pumpAndSettle();
 
-        // Tap the shape
-        // We find the shape gesture detector by checking the container's background color
-        final shapeGesture = find.byWidgetPredicate((w) => w is GestureDetector && w.child is Container && (w.child as Container).decoration is BoxDecoration && ((w.child as Container).decoration as BoxDecoration).color == const Color(0xFFF8F9FA));
-        // Let's tap the matching shape item by iterating gesture detectors
-        int itemIndex = 0;
-        if (state.topGridItems.any((e) => e.id == item.id)) {
-          itemIndex = state.topGridItems.indexWhere((e) => e.id == item.id);
-        } else {
-          itemIndex = state.topGridItems.length + state.bottomGridItems.indexWhere((e) => e.id == item.id);
+        // Tap the shape in top GridView
+        final topGrid = find.byType(GridView).first;
+        final shapeGesture = find.descendant(
+          of: topGrid,
+          matching: find.byWidgetPredicate((w) => w is GestureDetector && w.child is Container),
+        );
+        await tester.tap(shapeGesture.at(i), warnIfMissed: false);
+        await tester.pumpAndSettle();
+      }
+    }
+
+    // Scroll down to bring Tantangan B into view
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    // 2. Solve Tantangan B (Bottom Grid)
+    for (int i = 0; i < state.bottomGridItems.length; i++) {
+      final item = state.bottomGridItems[i];
+      if (item.isCorrect) {
+        // Select correct color
+        Color pickerColor = item.color;
+        if (pickerColor == Colors.yellow.shade700) {
+          await tester.tap(yellowPicker, warnIfMissed: false);
+        } else if (pickerColor == Colors.green) {
+          await tester.tap(greenPicker, warnIfMissed: false);
+        } else if (pickerColor == Colors.blue) {
+          await tester.tap(bluePicker, warnIfMissed: false);
+        } else if (pickerColor == Colors.orange) {
+          await tester.tap(orangePicker, warnIfMissed: false);
         }
-        await tester.tap(shapeGesture.at(itemIndex), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Tap the shape in bottom GridView
+        final bottomGrid = find.byType(GridView).last;
+        final shapeGesture = find.descendant(
+          of: bottomGrid,
+          matching: find.byWidgetPredicate((w) => w is GestureDetector && w.child is Container),
+        );
+        await tester.tap(shapeGesture.at(i), warnIfMissed: false);
         await tester.pumpAndSettle();
       }
     }

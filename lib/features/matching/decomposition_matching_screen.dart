@@ -442,70 +442,68 @@ class _DecompositionMatchingScreenState extends ConsumerState<DecompositionMatch
               
               // Grid Pilihan Bentuk
               Expanded(
-                child: SizedBox(
-                  height: 110,
-                  child: GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1.0,
-                    ),
-                    itemCount: gridItems.length,
-                    itemBuilder: (context, index) {
-                      final item = gridItems[index];
-                      final isSelected = selectedItems[item.id] == true;
-                      final animController = errorAnimators[item.id]!;
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: gridItems.length,
+                  itemBuilder: (context, index) {
+                    final item = gridItems[index];
+                    final isSelected = selectedItems[item.id] == true;
+                    final animController = errorAnimators[item.id]!;
 
-                      return AnimatedBuilder(
-                        animation: animController,
-                        builder: (context, child) {
-                          // Compute horizontal shake displacement
-                          final double shakeOffset = math.sin(animController.value * math.pi * 4) * 8 * (1 - animController.value);
-                          final borderColor = ColorTween(
-                            begin: isSelected ? Colors.green : Colors.grey.shade200,
-                            end: Colors.red,
-                          ).evaluate(animController)!;
+                    return AnimatedBuilder(
+                      animation: animController,
+                      builder: (context, child) {
+                        // Compute horizontal shake displacement
+                        final double shakeOffset = math.sin(animController.value * math.pi * 4) * 8 * (1 - animController.value);
+                        final borderColor = ColorTween(
+                          begin: isSelected ? Colors.green : Colors.grey.shade200,
+                          end: Colors.red,
+                        ).evaluate(animController)!;
 
-                          return Transform.translate(
-                            offset: Offset(shakeOffset, 0),
-                            child: GestureDetector(
-                              onTap: () => _onShapeTapped(item),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F9FA),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: borderColor,
-                                    width: isSelected || animController.value > 0 ? 3.0 : 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ],
+                        return Transform.translate(
+                          offset: Offset(shakeOffset, 0),
+                          child: GestureDetector(
+                            onTap: () => _onShapeTapped(item),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FA),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: isSelected || animController.value > 0 ? 3.0 : 1.5,
                                 ),
-                                child: Center(
-                                  child: Transform.scale(
-                                    scale: isSelected ? 1.05 : 1.0,
-                                    child: _ShapePainterWidget(
-                                      type: item.type,
-                                      color: item.color,
-                                      size: 32,
-                                    ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ],
+                              ),
+                              child: Center(
+                                child: Transform.scale(
+                                  scale: isSelected ? 1.05 : 1.0,
+                                  child: _ShapePainterWidget(
+                                    type: item.type,
+                                    color: item.color,
+                                    size: 32,
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
             ],
