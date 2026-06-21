@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
 import 'package:apkuas/core/services/haptic_service.dart';
+import 'package:apkuas/core/services/sound_service.dart';
 import 'package:apkuas/core/providers/progress_provider.dart';
 import 'package:apkuas/core/providers/profile_provider.dart';
 import 'package:apkuas/core/widgets/responsive_wrapper.dart';
 import 'package:apkuas/core/utils/celebration_utils.dart';
+import 'package:apkuas/core/services/user_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
@@ -20,7 +23,8 @@ class BeeHomeScreen extends ConsumerStatefulWidget {
 class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
   int beeIndex = 0;
   late List<Color> hexagonColors;
-  
+  Color? selectedColor;
+
   // Pattern: Blue (0), Green (1), Blue (2), Green (3)...
   final List<Color> targetPattern = List.generate(20, (index) => index % 2 == 0 ? Colors.blue : Colors.green);
 
@@ -39,7 +43,7 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
   void _generateSPath() {
     positions = [];
     double startX = 60;
-    double startY = 140;
+    double startY = 110;
     double hSpace = 85;
     double vSpace = 75;
 
@@ -66,58 +70,80 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
   }
 
   void _onHexagonTap(int index) {
+    if (selectedColor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pilih warna Biru atau Hijau di bawah terlebih dahulu!',
+            style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.orangeAccent,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
     // Only allow coloring forward
     if (index < beeIndex) return;
+    if (hexagonColors[index] == targetPattern[index]) return;
 
-    setState(() {
-      Color current = hexagonColors[index];
-      if (current == Colors.white) {
-        hexagonColors[index] = Colors.blue;
-      } else if (current == Colors.blue) {
-        hexagonColors[index] = Colors.green;
-      } else {
-        hexagonColors[index] = Colors.white;
-      }
-    });
-
-    HapticService.light();
-    _checkMovement();
-  }
-
-  void _checkMovement() {
-    // Check if the next hexagon (beeIndex + 1) is colored correctly
-    int nextIndex = beeIndex + 1;
-    if (nextIndex < positions.length) {
-      if (hexagonColors[nextIndex] == targetPattern[nextIndex]) {
-        setState(() {
-          beeIndex = nextIndex;
-        });
-        
-        // Check if finished
-        if (beeIndex == positions.length - 1) {
-          _handleWin();
-        }
-      }
+    if (selectedColor == targetPattern[index]) {
+      SoundService.playSuccess();
+      HapticService.success();
+      setState(() {
+        hexagonColors[index] = selectedColor!;
+      });
+      _checkMovement();
+    } else {
+      HapticFeedback.lightImpact();
+      SoundService.playError();
     }
   }
 
-  void _handleWin() {
+  void _checkMovement() {
+    int nextIndex = beeIndex + 1;
+    while (nextIndex < positions.length && hexagonColors[nextIndex] == targetPattern[nextIndex]) {
+      beeIndex = nextIndex;
+      nextIndex = beeIndex + 1;
+    }
+    setState(() {});
+
+    if (beeIndex == positions.length - 1) {
+      gameWin();
+    }
+  }
+
+  void gameWin() {
     _showLevelUpOverlay();
   }
 
-  void _showLevelUpOverlay() {
+  void _showLevelUpOverlay() async {
     HapticService.success();
-    
-    // Save progress immediately
-    ref.read(profileProvider.notifier).addStars(15);
-    ref.read(progressProvider.notifier).updateHighestLevel(13);
+    ref.read(progressProvider.notifier).completeLevel(widget.levelId);
 
+    try {
+      await UserService.updateProgress(widget.levelId);
+    } catch (e) {
+      debugPrint('Cloud progress update failed for level ${widget.levelId}: $e');
+    }
+
+    if (!mounted) return;
     CelebrationUtils.showCelebrationAndLevelUp(
       context: context,
-      nextLevelId: 13,
+      nextLevelId: widget.levelId + 1,
       title: 'Hebat! Kamu Pintar!',
       message: 'Tantangan Berikutnya: Level 13',
     );
+  }
+
+  void _resetLevel() {
+    setState(() {
+      beeIndex = 0;
+      selectedColor = null;
+      hexagonColors = List.generate(20, (_) => Colors.white);
+      hexagonColors[0] = Colors.blue;
+    });
   }
 
   @override
@@ -127,140 +153,252 @@ class _BeeHomeScreenState extends ConsumerState<BeeHomeScreen> {
         backgroundColor: const Color(0xFFF5FDFB),
         body: SafeArea(
           top: true,
-          child: Stack(
+          child: Column(
             children: [
-              // Decorative Clouds/Trees
-              Positioned(
-                top: 60,
-                left: -20,
-                child: Opacity(
-                  opacity: 0.1,
-                  child: Icon(Icons.cloud, size: 100, color: Colors.blue.shade200),
-                ),
-              ),
-              Positioned(
-                bottom: 40,
-                right: -20,
-                child: Opacity(
-                  opacity: 0.2,
-                  child: Icon(Icons.park_rounded, size: 150, color: Colors.green.shade200),
-                ),
-              ),
-  
-              // Header & Instruksi Terintegrasi (Lebih Rapat & Hemat Ruang)
-              Positioned(
-                top: 10,
-                left: 0,
-                right: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'LEVEL 12',
-                                style: GoogleFonts.fredoka(
-                                  fontSize: 14,
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Algoritma Pola',
-                                style: GoogleFonts.fredoka(
-                                  fontSize: 20,
-                                  color: CilikTheme.tealTua,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: Colors.white,
-                            child: const Icon(Icons.person, color: CilikTheme.tealTua, size: 20),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6), // Spacing kecil penyeimbang
-                    Text(
-                      'Warnai pola Biru ➔ Hijau untuk pulang!',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.fredoka(
-                        fontSize: 14,
-                        color: Colors.blueGrey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Hexagon Path
-            ...List.generate(positions.length, (index) {
-              final pos = positions[index];
-              return Positioned(
-                left: pos.dx,
-                top: pos.dy,
-                child: GestureDetector(
-                  onTap: () => _onHexagonTap(index),
+              _buildHeader(),
+              Expanded(
+                child: Center(
                   child: SizedBox(
-                    width: hexSize,
-                    height: hexSize,
-                    child: CustomPaint(
-                      painter: HexagonPainter(
-                        color: hexagonColors[index],
-                        showDash: hexagonColors[index] == Colors.white,
-                      ),
+                    width: 380,
+                    height: 520,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Decorative Clouds
+                        Positioned(
+                          top: 10,
+                          left: -20,
+                          child: Opacity(
+                            opacity: 0.1,
+                            child: Icon(Icons.cloud, size: 100, color: Colors.blue.shade200),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          right: -20,
+                          child: Opacity(
+                            opacity: 0.2,
+                            child: Icon(Icons.park_rounded, size: 150, color: Colors.green.shade200),
+                          ),
+                        ),
+
+                        // Hexagon Path
+                        ...List.generate(positions.length, (index) {
+                          final pos = positions[index];
+                          return Positioned(
+                            left: pos.dx,
+                            top: pos.dy,
+                            child: GestureDetector(
+                              key: ValueKey('hexagon_tap_$index'),
+                              onTap: () => _onHexagonTap(index),
+                              child: SizedBox(
+                                width: hexSize,
+                                height: hexSize,
+                                child: CustomPaint(
+                                  painter: HexagonPainter(
+                                    color: hexagonColors[index],
+                                    showDash: hexagonColors[index] == Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+
+                        // Beehive (Pohon & Sarang)
+                        Positioned(
+                          left: positions.last.dx + 40,
+                          top: positions.last.dy - 10,
+                          child: SizedBox(
+                            width: 120,
+                            height: 120,
+                            child: CustomPaint(painter: BeehivePainter()),
+                          ),
+                        ),
+
+                        // Bee Sprite
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 600),
+                          curve: Curves.easeInOut,
+                          left: positions[beeIndex].dx + 10,
+                          top: positions[beeIndex].dy - 35,
+                          child: const SizedBox(
+                            width: 55,
+                            height: 55,
+                            child: Center(
+                              child: Text('🐝', style: TextStyle(fontSize: 45)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            }),
-
-            // Beehive (Pohon & Sarang)
-            Positioned(
-              left: positions.last.dx + 40,
-              top: positions.last.dy - 10,
-              child: SizedBox(
-                width: 120,
-                height: 120,
-                child: CustomPaint(painter: BeehivePainter()),
               ),
-            ),
+              _buildPalette(),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _resetLevel,
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.orange, size: 22),
+                  label: const Text(
+                    'Ulangi',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Bee Sprite
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeInOut,
-              left: positions[beeIndex].dx + 10,
-              top: positions[beeIndex].dy - 35,
-              child: const SizedBox(
-                width: 55,
-                height: 55,
-                child: Center(
-                  child: Text('🐝', style: TextStyle(fontSize: 45)),
+  Widget _buildHeader() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: CilikTheme.tealTua),
+                onPressed: () => Navigator.pop(context),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'LEVEL 12',
+                    style: GoogleFonts.fredoka(
+                      fontSize: 14,
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Algoritma Pola',
+                    style: GoogleFonts.fredoka(
+                      fontSize: 20,
+                      color: CilikTheme.tealTua,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white,
+                child: const Icon(Icons.person, color: CilikTheme.tealTua, size: 20),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Warnai pola Biru ➔ Hijau untuk pulang!',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.fredoka(
+            fontSize: 14,
+            color: Colors.blueGrey.shade600,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPalette() {
+    final colors = [Colors.blue, Colors.green];
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: colors.map((color) {
+          final isSelected = selectedColor == color;
+          final colorText = color == Colors.blue ? 'Biru' : 'Hijau';
+
+          return GestureDetector(
+            onTap: () {
+              HapticService.light();
+              setState(() {
+                selectedColor = color;
+              });
+            },
+            child: AnimatedScale(
+              scale: isSelected ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF2C3E50) : Colors.white,
+                          width: isSelected ? 3.5 : 2.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.4),
+                            blurRadius: isSelected ? 8 : 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.format_paint_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      colorText,
+                      style: GoogleFonts.fredoka(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    )
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          );
+        }).toList(),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class HexagonPainter extends CustomPainter {
@@ -303,13 +441,14 @@ class HexagonPainter extends CustomPainter {
     canvas.drawPath(path, borderPaint);
 
     if (showDash) {
-      // Add a small center dot or light shading
       canvas.drawCircle(Offset(cx, cy), 2, Paint()..color = Colors.grey.shade300);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant HexagonPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.showDash != showDash;
+  }
 }
 
 class BeehivePainter extends CustomPainter {
@@ -333,7 +472,7 @@ class BeehivePainter extends CustomPainter {
     // Draw Hanging Hive
     canvas.drawLine(const Offset(50, 15), const Offset(50, 30), Paint()..color = Colors.brown.shade600..strokeWidth = 2);
     
-    // Hive Shape (Oval segments)
+    // Hive Shape
     Rect hiveRect = const Rect.fromLTWH(30, 30, 40, 50);
     canvas.drawOval(hiveRect, hivePaint);
     canvas.drawOval(const Rect.fromLTWH(32, 40, 36, 40), Paint()..color = Colors.amber.shade700);
