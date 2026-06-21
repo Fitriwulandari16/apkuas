@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:apkuas/core/theme/cilik_theme.dart';
@@ -476,17 +477,24 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
                     builder: (context, constraints) {
                       final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-                      return GestureDetector(
-                        onPanStart: (details) => _handlePanStart(challenge.id, details.localPosition, size),
-                        onPanUpdate: (details) => _handlePanUpdate(challenge.id, details.localPosition),
-                        onPanEnd: (details) => _handlePanEnd(challenge.id, size),
-                        onPanCancel: () {
-                          setState(() {
-                            _isDrawing = false;
-                            _activeChallengeId = null;
-                            _activeStartDotIndex = null;
-                            _currentDragPosition = null;
-                          });
+                      return RawGestureDetector(
+                        gestures: <Type, GestureRecognizerFactory>{
+                          EagerPanGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerPanGestureRecognizer>(
+                            () => EagerPanGestureRecognizer(debugOwner: 'eagerPan'),
+                            (EagerPanGestureRecognizer instance) {
+                              instance.onStart = (details) => _handlePanStart(challenge.id, details.localPosition, size);
+                              instance.onUpdate = (details) => _handlePanUpdate(challenge.id, details.localPosition);
+                              instance.onEnd = (details) => _handlePanEnd(challenge.id, size);
+                              instance.onCancel = () {
+                                setState(() {
+                                  _isDrawing = false;
+                                  _activeChallengeId = null;
+                                  _activeStartDotIndex = null;
+                                  _currentDragPosition = null;
+                                });
+                              };
+                            },
+                          ),
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
@@ -730,6 +738,16 @@ class InteractiveLinesPainter extends CustomPainter {
     return oldDelegate.drawnLines.length != drawnLines.length ||
         oldDelegate.isDrawing != isDrawing ||
         oldDelegate.dragPos != dragPos;
+  }
+}
+
+class EagerPanGestureRecognizer extends PanGestureRecognizer {
+  EagerPanGestureRecognizer({super.debugOwner});
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    resolve(GestureDisposition.accepted);
   }
 }
 
