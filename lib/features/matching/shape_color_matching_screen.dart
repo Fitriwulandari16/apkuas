@@ -24,28 +24,21 @@ enum ShapeType { trapezoid, triangle, rectangle, rhombus, circle }
 class _GameItem {
   final int id;
   final ShapeType shape;
-  final Color color;
+  final String colorName;
+  final Color cardColor;
 
-  _GameItem({required this.id, required this.shape, required this.color});
+  _GameItem({
+    required this.id,
+    required this.shape,
+    required this.colorName,
+    required this.cardColor,
+  });
 }
 
 class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScreen> {
   late List<_GameItem> targets;
   Set<int> matchedIds = {};
-
-  final List<Color> _availableColors = [
-    Colors.lightBlue.shade400,
-    Colors.lightGreen.shade400,
-    Colors.amber.shade400,
-  ];
-
-  final List<ShapeType> _availableShapes = [
-    ShapeType.trapezoid,
-    ShapeType.triangle,
-    ShapeType.rectangle,
-    ShapeType.rhombus,
-    ShapeType.circle,
-  ];
+  List<String> draggables = [];
 
   @override
   void initState() {
@@ -56,20 +49,29 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
   void _initLevel() {
     setState(() {
       matchedIds.clear();
-      final random = math.Random();
-      List<_GameItem> generatedTargets = [];
       
-      int idCounter = 1;
-      while (generatedTargets.length < 6) {
-        final color = _availableColors[random.nextInt(_availableColors.length)];
-        final shape = _availableShapes[random.nextInt(_availableShapes.length)];
-        
-        bool isDuplicate = generatedTargets.any((t) => t.color == color && t.shape == shape);
-        if (!isDuplicate || generatedTargets.length > 10) { 
-          generatedTargets.add(_GameItem(id: idCounter++, shape: shape, color: color));
-        }
-      }
-      targets = generatedTargets;
+      // Fixed targets matching the screenshot:
+      // Row 1: Yellow Trapezoid, Yellow Triangle, Green Rhombus
+      // Row 2: Blue Circle, Blue Triangle, Green Circle
+      targets = [
+        _GameItem(id: 1, shape: ShapeType.trapezoid, colorName: 'yellow', cardColor: const Color(0xFFFFB300)),
+        _GameItem(id: 2, shape: ShapeType.triangle, colorName: 'yellow', cardColor: const Color(0xFFFFB300)),
+        _GameItem(id: 3, shape: ShapeType.rhombus, colorName: 'green', cardColor: const Color(0xFF81C784)),
+        _GameItem(id: 4, shape: ShapeType.circle, colorName: 'blue', cardColor: const Color(0xFF29B6F6)),
+        _GameItem(id: 5, shape: ShapeType.triangle, colorName: 'blue', cardColor: const Color(0xFF29B6F6)),
+        _GameItem(id: 6, shape: ShapeType.circle, colorName: 'green', cardColor: const Color(0xFF81C784)),
+      ];
+
+      // Solid draggable shapes matching the targets
+      draggables = [
+        'rhombus_green',
+        'circle_green',
+        'trapezoid_yellow',
+        'circle_blue',
+        'triangle_blue',
+        'triangle_yellow',
+      ];
+      draggables.shuffle(); // Shuffled for engaging play
     });
   }
 
@@ -89,8 +91,10 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
     );
   }
 
-  bool _handleShapeDrop(_GameItem targetItem, ShapeType shapeType) {
-    if (targetItem.shape == shapeType) {
+  bool _handleShapeDrop(_GameItem targetItem, String droppedKey) {
+    final shapeName = targetItem.shape.toString().split('.').last;
+    final expectedKey = "${shapeName}_${targetItem.colorName}";
+    if (expectedKey == droppedKey) {
       setState(() {
         matchedIds.add(targetItem.id);
       });
@@ -106,6 +110,21 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
       HapticFeedback.lightImpact();
       return false;
     }
+  }
+
+  ShapeType _getShapeType(String key) {
+    if (key.startsWith('rhombus')) return ShapeType.rhombus;
+    if (key.startsWith('circle')) return ShapeType.circle;
+    if (key.startsWith('trapezoid')) return ShapeType.trapezoid;
+    if (key.startsWith('triangle')) return ShapeType.triangle;
+    return ShapeType.circle;
+  }
+
+  Color _getColor(String key) {
+    if (key.endsWith('green')) return const Color(0xFF81C784);
+    if (key.endsWith('yellow')) return const Color(0xFFFFB300);
+    if (key.endsWith('blue')) return const Color(0xFF29B6F6);
+    return Colors.grey;
   }
 
   @override
@@ -142,7 +161,7 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
                           return _TargetCard(
                             target: target,
                             isMatched: isMatched,
-                            onShapeDropped: (shape) => _handleShapeDrop(target, shape),
+                            onShapeDropped: (shapeKey) => _handleShapeDrop(target, shapeKey),
                           );
                         },
                       ),
@@ -177,72 +196,73 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // White rounded pill-shape Shape Palette card (horizontal centered)
+          // White rounded container holding the solid shape draggables
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.grey.shade200, width: 1.5),
+              border: Border.all(color: Colors.grey.shade100, width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: _availableShapes.map((shapeType) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                  child: Draggable<ShapeType>(
-                    data: shapeType,
-                    feedback: Material(
-                      color: Colors.transparent,
-                      child: Opacity(
-                        opacity: 0.8,
-                        child: _ShapePainterWidget(
-                          type: shapeType,
-                          color: CilikTheme.tealTua,
-                          size: 50,
-                          isDashed: true,
-                        ),
-                      ),
-                    ),
-                    childWhenDragging: Opacity(
-                      opacity: 0.4,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 16,
+              children: draggables.map((itemKey) {
+                final shapeType = _getShapeType(itemKey);
+                final color = _getColor(itemKey);
+                
+                return Draggable<String>(
+                  data: itemKey,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.8,
                       child: _ShapePainterWidget(
                         type: shapeType,
-                        color: Colors.grey.shade400,
-                        size: 40,
-                        isDashed: true,
+                        color: color,
+                        size: 60,
                       ),
                     ),
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.3,
                     child: _ShapePainterWidget(
                       type: shapeType,
-                      color: CilikTheme.tealTua,
-                      size: 40,
-                      isDashed: true,
+                      color: color,
+                      size: 50,
                     ),
+                  ),
+                  child: _ShapePainterWidget(
+                    type: shapeType,
+                    color: color,
+                    size: 50,
                   ),
                 );
               }).toList(),
             ),
           ),
           const SizedBox(height: 16),
-          // Symmetric Reset Button
-          TextButton.icon(
-            onPressed: _initLevel,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
-            label: Text(
-              'Ulangi',
-              style: GoogleFonts.fredoka(
-                color: Colors.blueGrey,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          // Symmetric Reset Button explicitly centered
+          Center(
+            child: TextButton.icon(
+              onPressed: _initLevel,
+              icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
+              label: Text(
+                'Ulangi',
+                style: GoogleFonts.fredoka(
+                  color: Colors.blueGrey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -289,11 +309,11 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.gesture_rounded, color: Colors.orange, size: 22),
+          const Icon(Icons.touch_app_rounded, color: Colors.orange, size: 22),
           const SizedBox(width: 10),
           Flexible(
             child: Text(
-              'Tarik bentuk di bawah ke pasangan yang sesuai!',
+              'Tarik dan tempelkan pada bentuk yang tepat!',
               style: GoogleFonts.fredoka(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -311,7 +331,7 @@ class _ShapeColorMatchingScreenState extends ConsumerState<ShapeColorMatchingScr
 class _TargetCard extends StatefulWidget {
   final _GameItem target;
   final bool isMatched;
-  final Function(ShapeType) onShapeDropped;
+  final Function(String) onShapeDropped;
 
   const _TargetCard({
     required this.target,
@@ -340,7 +360,7 @@ class _TargetCardState extends State<_TargetCard> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
-    return DragTarget<ShapeType>(
+    return DragTarget<String>(
       onWillAccept: (data) => !widget.isMatched,
       onAccept: (data) {
         bool correct = widget.onShapeDropped(data);
@@ -363,7 +383,7 @@ class _TargetCardState extends State<_TargetCard> with SingleTickerProviderState
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: widget.target.color,
+              color: widget.target.cardColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isHovering ? Colors.white : Colors.transparent,
@@ -371,7 +391,7 @@ class _TargetCardState extends State<_TargetCard> with SingleTickerProviderState
               ),
               boxShadow: [
                 BoxShadow(
-                  color: widget.target.color.withOpacity(0.3),
+                  color: widget.target.cardColor.withOpacity(0.3),
                   blurRadius: widget.isMatched ? 4 : 10,
                   offset: const Offset(0, 4),
                 )
