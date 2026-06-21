@@ -21,6 +21,7 @@ class ShapeCompletionScreen extends ConsumerStatefulWidget {
 
 class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
   final List<String> shapeIds = ['square', 'circle', 'pentagon', 'heart'];
+  final List<String> draggableShapes = ['square', 'circle', 'pentagon', 'heart'];
   
   Map<String, bool> completed = {
     'square': false,
@@ -28,14 +29,6 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
     'pentagon': false,
     'heart': false,
   };
-
-  Color? selectedColor;
-  final List<Color> paletteColors = [
-    Colors.green,
-    Colors.yellow.shade700,
-    Colors.blue,
-    Colors.red,
-  ];
 
   final Map<String, GlobalKey<_TargetShapeCardState>> cardKeys = {
     'square': GlobalKey<_TargetShapeCardState>(),
@@ -52,13 +45,13 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
 
   void _resetLevel() {
     setState(() {
-      selectedColor = null;
       completed = {
         'square': false,
         'circle': false,
         'pentagon': false,
         'heart': false,
       };
+      draggableShapes.shuffle();
     });
   }
 
@@ -88,17 +81,11 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
     );
   }
 
-  bool _checkColorForShape(String id, Color? color) {
-    if (color == null) return false;
-    
-    bool correct = false;
-    if (id == 'square' && color == Colors.green) correct = true;
-    if (id == 'circle' && color == Colors.yellow.shade700) correct = true;
-    if (id == 'pentagon' && color == Colors.blue) correct = true;
-    if (id == 'heart' && color == Colors.red) correct = true;
+  bool _checkShapeDrop(String targetId, String droppedId) {
+    bool correct = targetId == droppedId;
 
     if (correct) {
-      _onPieceMatched(id);
+      _onPieceMatched(targetId);
       return true;
     } else {
       SoundService.playError();
@@ -139,7 +126,7 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Pilih warna di bawah, lalu lengkapi bentuk yang sesuai!',
+                'Geser potongan ke bentuk yang tepat!',
                 style: GoogleFonts.fredoka(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                 textAlign: TextAlign.center,
               ),
@@ -158,9 +145,7 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
                       key: cardKeys[id],
                       id: id,
                       isCompleted: completed[id]!,
-                      onTap: () {
-                        _checkColorForShape(id, selectedColor);
-                      },
+                      onShapeDropped: (droppedId) => _checkShapeDrop(id, droppedId),
                     );
                   }).toList(),
                 ),
@@ -170,6 +155,79 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
             // Bottom Area with Picker & Reset
             _buildBottomArea(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDraggablePiece(String shapeId) {
+    return Draggable<String>(
+      data: shapeId,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.8,
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CustomPaint(
+                painter: ShapeSegmentPainter(shapeId: shapeId),
+              ),
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: CustomPaint(
+              painter: ShapeSegmentPainter(shapeId: shapeId),
+            ),
+          ),
+        ),
+      ),
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
+          ],
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CustomPaint(
+            painter: ShapeSegmentPainter(shapeId: shapeId),
+          ),
         ),
       ),
     );
@@ -192,40 +250,13 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Row of Color Pickers
+          // Row of Draggables
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: paletteColors.map((color) {
-              final isSelected = selectedColor == color;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedColor = color;
-                  });
-                  HapticFeedback.selectionClick();
-                },
-                child: AnimatedScale(
-                  scale: isSelected ? 1.15 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected 
-                          ? Border.all(color: Colors.black87, width: 3.5)
-                          : Border.all(color: Colors.white, width: 2.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: draggableShapes.map((shapeId) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                child: _buildDraggablePiece(shapeId),
               );
             }).toList(),
           ),
@@ -234,12 +265,12 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
           TextButton.icon(
             onPressed: _resetLevel,
             icon: const Icon(Icons.refresh_rounded, color: Colors.blueGrey, size: 20),
-            label: const Text(
+            label: Text(
               'Ulangi',
-              style: TextStyle(
+              style: GoogleFonts.fredoka(
                 color: Colors.blueGrey,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 16,
               ),
             ),
           ),
@@ -252,13 +283,13 @@ class _ShapeCompletionScreenState extends ConsumerState<ShapeCompletionScreen> {
 class _TargetShapeCard extends StatefulWidget {
   final String id;
   final bool isCompleted;
-  final VoidCallback onTap;
+  final Function(String) onShapeDropped;
 
   const _TargetShapeCard({
     super.key,
     required this.id,
     required this.isCompleted,
-    required this.onTap,
+    required this.onShapeDropped,
   });
 
   @override
@@ -282,49 +313,57 @@ class _TargetShapeCardState extends State<_TargetShapeCard> with SingleTickerPro
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        widget.onTap();
-        if (!widget.isCompleted) {
+    return DragTarget<String>(
+      onWillAccept: (data) => !widget.isCompleted,
+      onAccept: (data) {
+        bool correct = widget.onShapeDropped(data);
+        if (!correct) {
           _shakeController.forward(from: 0);
         }
       },
-      child: AnimatedBuilder(
-        animation: _shakeController,
-        builder: (context, child) {
-          final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
-          return Transform.translate(
-            offset: Offset(offset, 0),
-            child: child,
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: widget.isCompleted ? Colors.blueGrey.shade100 : Colors.grey.shade200, 
-              width: 2
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+
+        return AnimatedBuilder(
+          animation: _shakeController,
+          builder: (context, child) {
+            final double offset = math.sin(_shakeController.value * math.pi * 4) * 8 * (1 - _shakeController.value);
+            return Transform.translate(
+              offset: Offset(offset, 0),
+              child: child,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isHovering 
+                    ? Colors.blue.shade300 
+                    : (widget.isCompleted ? Colors.blueGrey.shade100 : Colors.grey.shade200), 
+                width: isHovering ? 3.0 : 2.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04), 
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04), 
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: CustomPaint(
-              painter: ShapeWithCutoutPainter(
-                shapeId: widget.id,
-                isCompleted: widget.isCompleted,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: CustomPaint(
+                painter: ShapeWithCutoutPainter(
+                  shapeId: widget.id,
+                  isCompleted: widget.isCompleted,
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -460,4 +499,134 @@ class ShapeWithCutoutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class ShapeSegmentPainter extends CustomPainter {
+  final String shapeId;
+
+  ShapeSegmentPainter({required this.shapeId});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final destRect = Rect.fromLTWH(6, 6, size.width - 12, size.height - 12);
+    
+    final double s = size.width * 0.45;
+    Rect cutoutRect;
+    switch (shapeId) {
+      case 'square': cutoutRect = Rect.fromLTWH(size.width - s, size.height - s, s, s); break;
+      case 'circle': cutoutRect = Rect.fromLTWH(0, size.height - s, s, s); break;
+      case 'pentagon': cutoutRect = Rect.fromLTWH(size.width - s, 0, s, s); break;
+      case 'heart': cutoutRect = Rect.fromLTWH(0, 0, s, s); break;
+      default: cutoutRect = Rect.zero;
+    }
+
+    double scaleX = destRect.width / cutoutRect.width;
+    double scaleY = destRect.height / cutoutRect.height;
+    double translateX = destRect.left - cutoutRect.left * scaleX;
+    double translateY = destRect.top - cutoutRect.top * scaleY;
+
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: _getGradientColors(),
+      ).createShader(destRect)
+      ..style = PaintingStyle.fill;
+
+    final dashPaint = Paint()
+      ..color = Colors.grey.shade400
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    canvas.save();
+    canvas.clipRect(destRect);
+    canvas.translate(translateX, translateY);
+    canvas.scale(scaleX, scaleY);
+    
+    Path shapePath = _getShapePath(size);
+    canvas.drawPath(shapePath, paint);
+    canvas.restore();
+
+    _drawInnerDashes(canvas, destRect, dashPaint);
+  }
+
+  List<Color> _getGradientColors() {
+    switch (shapeId) {
+      case 'square': return [const Color(0xFF81C784), const Color(0xFF388E3C)];
+      case 'circle': return [const Color(0xFFFFF176), const Color(0xFFFBC02D)];
+      case 'pentagon': return [const Color(0xFF64B5F6), const Color(0xFF1976D2)];
+      case 'heart': return [const Color(0xFFE57373), const Color(0xFFD32F2F)];
+      default: return [Colors.grey, Colors.grey];
+    }
+  }
+
+  Path _getShapePath(Size size) {
+    Path path = Path();
+    double w = size.width;
+    double h = size.height;
+
+    switch (shapeId) {
+      case 'square':
+        path.addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, h), const Radius.circular(16)));
+        break;
+      case 'circle':
+        path.addOval(Rect.fromLTWH(0, 0, w, h));
+        break;
+      case 'pentagon':
+        path.moveTo(w / 2, 0);
+        path.lineTo(w, h * 0.38);
+        path.lineTo(w * 0.82, h);
+        path.lineTo(w * 0.18, h);
+        path.lineTo(0, h * 0.38);
+        path.close();
+        break;
+      case 'heart':
+        path.moveTo(w * 0.5, h);
+        path.cubicTo(w * 0.2, h * 0.7, 0, h * 0.5, 0, h * 0.3);
+        path.cubicTo(0, h * 0.1, w * 0.25, 0, w * 0.5, h * 0.2);
+        path.cubicTo(w * 0.75, 0, w, h * 0.1, w, h * 0.3);
+        path.cubicTo(w, h * 0.5, w * 0.8, h * 0.7, w * 0.5, h);
+        path.close();
+        break;
+    }
+    return path;
+  }
+
+  void _drawInnerDashes(Canvas canvas, Rect rect, Paint paint) {
+    const double dashWidth = 5;
+    const double dashSpace = 3;
+    
+    void drawDashedLine(Offset p1, Offset p2) {
+      double distance = (p1 - p2).distance;
+      for (double i = 0; i < distance; i += dashWidth + dashSpace) {
+        canvas.drawLine(
+          Offset.lerp(p1, p2, i / distance)!,
+          Offset.lerp(p1, p2, math.min(i + dashWidth, distance) / distance)!,
+          paint,
+        );
+      }
+    }
+
+    switch (shapeId) {
+      case 'square': // top and left
+        drawDashedLine(rect.topLeft, rect.topRight);
+        drawDashedLine(rect.topLeft, rect.bottomLeft);
+        break;
+      case 'circle': // top and right
+        drawDashedLine(rect.topLeft, rect.topRight);
+        drawDashedLine(rect.topRight, rect.bottomRight);
+        break;
+      case 'pentagon': // bottom and left
+        drawDashedLine(rect.bottomLeft, rect.bottomRight);
+        drawDashedLine(rect.topLeft, rect.bottomLeft);
+        break;
+      case 'heart': // bottom and right
+        drawDashedLine(rect.bottomLeft, rect.bottomRight);
+        drawDashedLine(rect.topRight, rect.bottomRight);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
