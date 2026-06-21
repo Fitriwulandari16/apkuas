@@ -9,6 +9,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:gal/gal.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class FreeColoringScreen extends StatefulWidget {
   const FreeColoringScreen({super.key});
@@ -46,7 +48,7 @@ class _FreeColoringScreenState extends State<FreeColoringScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.save_alt_rounded, color: Colors.teal),
-            onPressed: _saveToGallery,
+            onPressed: saveCanvasToGallery,
           ),
         ],
       ),
@@ -163,17 +165,57 @@ class _FreeColoringScreenState extends State<FreeColoringScreen> {
     );
   }
 
-  Future<void> _saveToGallery() async {
+  Future<void> saveCanvasToGallery() async {
     try {
-      // 1. Request Permissions (especially for Android)
-      if (Platform.isAndroid || Platform.isIOS) {
-        var status = await Permission.storage.status;
-        if (!status.isGranted) {
-          status = await Permission.storage.request();
-          if (!status.isGranted) {
-            _showErrorSnackBar('Izin penyimpanan dibutuhkan untuk menyimpan karya.');
-            return;
+      // 1. Determine correct permission depending on platform and Android version using device_info_plus
+      Permission storagePermission = Permission.storage;
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        final sdkInt = androidInfo.version.sdkInt;
+        if (sdkInt >= 33) {
+          storagePermission = Permission.photos;
+        }
+      } else if (Platform.isIOS) {
+        storagePermission = Permission.photos;
+      }
+
+      // Check current permission status
+      var status = await storagePermission.status;
+      if (status.isGranted) {
+        // Clear any active error banner (SnackBar) immediately if permission is already true
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+        }
+      } else {
+        // Request permission
+        status = await storagePermission.request();
+        if (status.isGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
           }
+        } else {
+          if (status.isPermanentlyDenied) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Izin penyimpanan ditolak permanen. Silakan aktifkan di Pengaturan HP Anda.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  backgroundColor: Colors.redAccent,
+                  action: SnackBarAction(
+                    label: 'PENGATURAN',
+                    textColor: Colors.white,
+                    onPressed: () => openAppSettings(),
+                  ),
+                ),
+              );
+            }
+          } else {
+            _showErrorSnackBar('Izin penyimpanan dibutuhkan untuk menyimpan karya.');
+          }
+          return;
         }
       }
 
@@ -200,17 +242,32 @@ class _FreeColoringScreenState extends State<FreeColoringScreen> {
         await drawingsDir.create(recursive: true);
       }
 
-      // 4. Save to File
+      // 4. Save to local file
       final String fileName = 'drawing_${DateTime.now().millisecondsSinceEpoch}.png';
       final File imageFile = File('$folderPath/$fileName');
       await imageFile.writeAsBytes(pngBytes);
 
-      // 5. Save Path to Service/Database
+      // 5. Save to System Gallery using Gal
+      await Gal.putImage(imageFile.path);
+
+      // 6. Save Path to Service/Database
       await GalleryService.saveImagePath(imageFile.path);
 
       HapticService.success();
+      
+      // 7. Clear error message and show children-friendly success SnackBar
       if (mounted) {
-        _showSuccessDialog();
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Hore! Karyamu berhasil disimpan ke Galeri! 🎨✨",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       print('DEBUG ERROR: Save failed - $e');
