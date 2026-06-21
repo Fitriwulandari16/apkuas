@@ -43,6 +43,7 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
   int? _activeChallengeId;
   int? _activeStartDotIndex;
   Offset? _currentDragPosition;
+  bool _isDrawing = false;
 
   // Premium colors corresponding to the textbook image
   static const Color colRed = Color(0xFFEF5350);    // Baris 1: Merah (Segitiga Siku)
@@ -147,6 +148,11 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
         _activeChallengeId = challengeId;
         _activeStartDotIndex = dotIndex;
         _currentDragPosition = localPos;
+        _isDrawing = true;
+      });
+    } else {
+      setState(() {
+        _isDrawing = true;
       });
     }
   }
@@ -159,7 +165,18 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
   }
 
   void _handlePanEnd(int challengeId, Size size) {
-    if (_activeChallengeId != challengeId || _activeStartDotIndex == null || _currentDragPosition == null) return;
+    setState(() {
+      _isDrawing = false;
+    });
+
+    if (_activeChallengeId != challengeId || _activeStartDotIndex == null || _currentDragPosition == null) {
+      setState(() {
+        _activeChallengeId = null;
+        _activeStartDotIndex = null;
+        _currentDragPosition = null;
+      });
+      return;
+    }
 
     final challenge = _challenges[challengeId];
     final endDotIndex = _findNearestDot(_currentDragPosition!, size);
@@ -247,7 +264,7 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
             _buildInstruction(),
             Expanded(
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+                physics: _isDrawing ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Column(
@@ -463,6 +480,14 @@ class _PatternShapeImitationScreenState extends ConsumerState<PatternShapeImitat
                         onPanStart: (details) => _handlePanStart(challenge.id, details.localPosition, size),
                         onPanUpdate: (details) => _handlePanUpdate(challenge.id, details.localPosition),
                         onPanEnd: (details) => _handlePanEnd(challenge.id, size),
+                        onPanCancel: () {
+                          setState(() {
+                            _isDrawing = false;
+                            _activeChallengeId = null;
+                            _activeStartDotIndex = null;
+                            _currentDragPosition = null;
+                          });
+                        },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           decoration: BoxDecoration(
